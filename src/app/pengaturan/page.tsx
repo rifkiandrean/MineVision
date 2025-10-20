@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const initialMenuItems = [
     { id: 1, name: 'Dashboard', path: '/' },
@@ -30,9 +31,31 @@ const initialMenuItems = [
     { id: 5, name: 'K3L', path: '/k3l' },
 ]
 
+const allPermissions = [
+  { id: 'dashboard', label: 'Akses Dashboard Utama' },
+  { id: 'produksi', label: 'Akses Halaman Produksi' },
+  { id: 'geologi', label: 'Akses Halaman Geologi' },
+  { id: 'pengolahan', label: 'Akses Halaman Pengolahan' },
+  { id: 'k3l', label: 'Akses Halaman K3L' },
+  { id: 'keuangan', label: 'Akses Halaman Administrasi Keuangan' },
+  { id: 'sdm', label: 'Akses Halaman Administrasi SDM' },
+  { id: 'it', label: 'Akses Halaman Administrasi IT' },
+  { id: 'pengaturan', label: 'Akses Halaman Pengaturan' },
+  { id: 'keuangan_approval', label: 'Izin Menyetujui Pembayaran (Keuangan)' },
+  { id: 'sdm_approval', label: 'Izin Menyetujui Cuti (SDM)' },
+];
+
 export default function SettingsPage() {
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
+  const [permissions, setPermissions] = useState(() => {
+    const initialPermissions: { [key: string]: boolean } = {};
+    allPermissions.forEach(p => {
+        initialPermissions[p.id] = true; // Default to all checked for Admin role
+    });
+    return initialPermissions;
+  });
+
 
   const handleMenuItemChange = (id: number, field: 'name' | 'path', value: string) => {
     setMenuItems(menuItems.map(item => 
@@ -47,6 +70,13 @@ export default function SettingsPage() {
 
   const removeMenuItem = (id: number) => {
     setMenuItems(menuItems.filter(item => item.id !== id));
+  };
+  
+  const handlePermissionChange = (permissionId: string) => {
+    setPermissions(prev => ({
+        ...prev,
+        [permissionId]: !prev[permissionId]
+    }));
   };
 
 
@@ -122,7 +152,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="flex justify-end pt-4">
-                        <Button className="bg-primary">Simpan Perubahan</Button>
+                        <Button className="bg-primary">Simpan Perubahan Halaman</Button>
                     </div>
 
                 </div>
@@ -131,8 +161,31 @@ export default function SettingsPage() {
             <AccordionItem value="item-2">
               <AccordionTrigger>Hak Akses & Peran Pengguna</AccordionTrigger>
               <AccordionContent>
-                Placeholder untuk mengelola aturan akses akun pengguna dan
-                peran di dalam aplikasi.
+                <div className="space-y-6">
+                    <div>
+                        <h4 className="font-medium">Peran: Admin</h4>
+                        <p className="text-sm text-muted-foreground">
+                            Atur izin akses untuk peran Admin. Peran ini memiliki akses ke seluruh fitur secara default.
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 rounded-md border p-4">
+                       {allPermissions.map(permission => (
+                         <div key={permission.id} className="flex items-center space-x-2">
+                            <Checkbox 
+                                id={`perm-${permission.id}`} 
+                                checked={permissions[permission.id]}
+                                onCheckedChange={() => handlePermissionChange(permission.id)}
+                            />
+                            <Label htmlFor={`perm-${permission.id}`} className="font-normal cursor-pointer">
+                                {permission.label}
+                            </Label>
+                        </div>
+                       ))}
+                    </div>
+                     <div className="flex justify-end pt-4">
+                        <Button className="bg-primary">Simpan Perubahan Hak Akses</Button>
+                    </div>
+                </div>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
