@@ -30,6 +30,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 const initialMenuItems = [
   { id: 1, name: 'Dashboard', path: '/' },
@@ -61,6 +64,9 @@ const userAccounts = [
 ];
 
 export default function SettingsPage() {
+  const auth = useAuth();
+  const { toast } = useToast();
+
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
   const [selectedAccount, setSelectedAccount] = useState<string>('usr-001');
@@ -75,6 +81,7 @@ export default function SettingsPage() {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('Staff');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
 
   const isSuperAdmin = userAccounts.find(acc => acc.id === selectedAccount)?.role === 'Super Admin';
@@ -116,6 +123,38 @@ export default function SettingsPage() {
       ...prev,
       [permissionId]: !prev[permissionId],
     }));
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserEmail || !newUserPassword) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Email dan password tidak boleh kosong.',
+      });
+      return;
+    }
+    setIsCreatingUser(true);
+    try {
+      await createUserWithEmailAndPassword(auth, newUserEmail, newUserPassword);
+      toast({
+        title: 'Akun Dibuat',
+        description: `Akun untuk ${newUserEmail} berhasil dibuat.`,
+      });
+      // Here you would also typically set the custom claim for the role in a backend function
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserRole('Staff');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Membuat Akun',
+        description: error.message || 'Terjadi kesalahan.',
+      });
+    } finally {
+      setIsCreatingUser(false);
+    }
   };
 
   return (
@@ -280,14 +319,14 @@ export default function SettingsPage() {
           </Accordion>
         </CardContent>
       </Card>
-      {userAccounts.find(acc => acc.id === selectedAccount)?.role === 'Super Admin' && (
+      {auth.currentUser?.email === 'rifkiandrean@gmail.com' && (
         <Card className="mt-8">
             <CardHeader>
                 <CardTitle>Tambah Akun Baru</CardTitle>
                 <CardDescription>Hanya Super Admin yang dapat menambahkan akun baru.</CardDescription>
             </CardHeader>
             <CardContent>
-                <form className="space-y-4">
+                <form className="space-y-4" onSubmit={handleCreateUser}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="new-email">Email Pengguna</Label>
@@ -311,7 +350,9 @@ export default function SettingsPage() {
                         </Select>
                     </div>
                      <div className="flex justify-end pt-4">
-                        <Button className="bg-primary">Tambah Akun</Button>
+                        <Button type="submit" className="bg-primary" disabled={isCreatingUser}>
+                            {isCreatingUser ? 'Menambahkan...' : 'Tambah Akun'}
+                        </Button>
                     </div>
                 </form>
             </CardContent>
