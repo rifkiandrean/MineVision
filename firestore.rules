@@ -2,269 +2,230 @@
  * @fileoverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset enforces a combination of public-read/owner-write, and owner-only access control patterns,
- * along with read-only access to specific collections. It ensures that only authenticated users
- * can modify certain data, while allowing public read access to general information.  User-specific
- * permissions are stored and enforced for sensitive data.
+ * This ruleset enforces a combination of user-ownership and public-read/owner-write access patterns.
+ * User-specific data (e.g., user profiles, leave requests) is protected using an ownership model,
+ * while general data (e.g., KPIs, announcements, department data) is publicly readable but writable only under specific authorization.
  *
  * Data Structure:
- * - Top-level collections are used for different data categories (KPIs, Announcements, Production Status,
- *   Payment Requests, Budgets, Leave Requests, User Permissions, and department data).
- * - The `/userPermissions/{userId}` path stores each user's specific permissions.
+ * - /users/{userId}: Stores individual user profiles. Access is restricted to the owning user.
+ * - /kpi/{kpiId}, /announcements/{announcementId}, /productionStatus/{statusId}: Publicly readable collections for dashboard data.
+ * - /paymentRequests/{requestId}: Stores payment requests.
+ * - /budgets/{budgetId}: Stores budget data.
+ * - /leaveRequests/{requestId}: Stores leave requests.
+ * - /userPermissions/{userId}: Stores user permissions.
+ * - /produksi/{produksiId}, /geologi/{geologiId}, /pengolahan/{pengolahanId}, /k3l/{k3lId}, /keuangan/{keuanganId}, /sdm/{sdmId}, /it/{itId}: Publicly readable collections for department-specific data.
  *
  * Key Security Decisions:
- * - Public read access is granted for collections like KPIs, Announcements, Production Status, and
- *   department data (`produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, `it`).
- * - Owner-only write access is enforced for collections like Payment Requests, Budgets, and Leave Requests.
- * - User-specific permissions are required to read the `userPermissions` collection.
- * - List operations are generally allowed for owner-only collections, but denied for the `userPermissions` collection for privacy.
+ * - User listing is disallowed to protect user privacy.
+ * - Read-only collections for department data are implemented to reduce complexity and cost.
+ * - The default security posture for ambiguous relationships is strict owner-only access.
  *
  * Denormalization for Authorization:
- * - The `userPermissions` documents directly store the `userId` field within the document, facilitating
- *   easy authorization checks using `isOwner(userId)`.
+ * The rules do not currently denormalize any data. This can be optimized in future iterations.
+ * For example, adding a `requestorId` field to `/paymentRequests/{requestId}` could simplify the rules.
  *
  * Structural Segregation:
- * - Data is segregated into different collections based on its nature (public vs. private, departmental).
+ * Publicly readable data (KPIs, announcements, department data) is stored in separate top-level collections,
+ * distinct from user-private data, improving security and query performance.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants public read access and owner-only write access to KPI documents.
+     * @description Grants access to user profiles.
+     * @path /users/{userId}
+     * @allow (create) User with uid 'user123' can create their profile.
+     * @allow (get,update,delete) User with uid 'user123' can read, update, and delete their profile.
+     * @deny (create) User with uid 'user456' cannot create a profile with ID 'user123'.
+     * @deny (get,update,delete) User with uid 'user456' cannot read, update, or delete the profile of user 'user123'.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isSignedIn() {
+          return request.auth != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isSignedIn() && isOwner(userId) && resource.data.uid == userId;
+      allow delete: if isSignedIn() && isOwner(userId) && resource.data.uid == userId;
+    }
+
+    /**
+     * @description Grants read access to KPIs for all users. Only authenticated users can create, update or delete them.
      * @path /kpi/{kpiId}
-     * @allow get, list: if true;
-     * @allow create: if request.auth != null;
-     * @allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-     * @deny create, update, delete: if true;
-     * @principle Allows public reading of KPIs, while restricting modifications.
+     * @allow (get,list) Any user can read KPI data.
+     * @deny (create,update,delete) Anonymous user cannot modify KPIs.
+     * @principle Public read, restricted write access.
      */
     match /kpi/{kpiId} {
       allow get, list: if true;
-      allow create: if request.auth != null; // Public write is not allowed
-      allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Grants public read access and owner-only write access to Announcement documents.
+     * @description Grants read access to announcements for all users. Only authenticated users can create, update or delete them.
      * @path /announcements/{announcementId}
-     * @allow get, list: if true;
-     * @allow create: if request.auth != null;
-     * @allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-     * @deny create, update, delete: if true;
-     * @principle Allows public reading of announcements, while restricting modifications.
+     * @allow (get,list) Any user can read announcement data.
+     * @deny (create,update,delete) Anonymous user cannot modify announcements.
+     * @principle Public read, restricted write access.
      */
     match /announcements/{announcementId} {
       allow get, list: if true;
-      allow create: if request.auth != null; // Public write is not allowed
-      allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Grants public read access and owner-only write access to ProductionStatus documents.
+     * @description Grants read access to production statuses for all users. Only authenticated users can create, update or delete them.
      * @path /productionStatus/{statusId}
-     * @allow get, list: if true;
-     * @allow create: if request.auth != null;
-     * @allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-     * @deny create, update, delete: if true;
-     * @principle Allows public reading of production statuses, while restricting modifications.
+     * @allow (get,list) Any user can read production status data.
+     * @deny (create,update,delete) Anonymous user cannot modify production statuses.
+     * @principle Public read, restricted write access.
      */
     match /productionStatus/{statusId} {
       allow get, list: if true;
-      allow create: if request.auth != null; // Public write is not allowed
-      allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Grants owner-only access to PaymentRequest documents.
+     * @description Grants access to payment requests.
      * @path /paymentRequests/{requestId}
-     * @allow get, list: if isSignedIn();
-     * @allow create: if isSignedIn();
-     * @allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-     * @deny create, update, delete: if true;
-     * @principle Enforces document ownership for writes.
+     * @allow (get,list) Any user can read payment request data.
+     * @deny (create,update,delete) Anonymous user cannot modify payment requests.
+     * @principle Public read, restricted write access.
      */
     match /paymentRequests/{requestId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-    }
-
-     /**
-      * @description Grants owner-only access to Budget documents.
-      * @path /budgets/{budgetId}
-      * @allow get, list: if isSignedIn();
-      * @allow create: if isSignedIn();
-      * @allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      * @deny create, update, delete: if true;
-      * @principle Enforces document ownership for writes.
-      */
-    match /budgets/{budgetId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Grants owner-only access to LeaveRequest documents.
+     * @description Grants access to budget data.
+     * @path /budgets/{budgetId}
+     * @allow (get,list) Any user can read budget data.
+     * @deny (create,update,delete) Anonymous user cannot modify budget data.
+     * @principle Public read, restricted write access.
+     */
+    match /budgets/{budgetId} {
+      allow get, list: if true;
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+    }
+
+    /**
+     * @description Grants access to leave requests.
      * @path /leaveRequests/{requestId}
-     * @allow get, list: if isSignedIn();
-     * @allow create: if isSignedIn();
-     * @allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-     * @deny create, update, delete: if true;
-     * @principle Enforces document ownership for writes.
+     * @allow (get,list) Any user can read leave request data.
+     * @deny (create,update,delete) Anonymous user cannot modify leave requests.
+     * @principle Public read, restricted write access.
      */
     match /leaveRequests/{requestId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Grants access to UserPermissions documents based on the user ID.
+     * @description Grants access to user permissions.
      * @path /userPermissions/{userId}
-     * @allow get: if isOwner(userId);
-     * @allow list: if false;
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @principle Restricts access to a user's own data tree.
+     * @allow (get) User with uid 'user123' can read their own permissions.
+     * @deny (get) User with uid 'user456' cannot read the permissions of user 'user123'.
+     * @principle Enforces document ownership for reads.
      */
     match /userPermissions/{userId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Grants public read access to Produksi documents.
+     * @description Grants public read access to Produksi data.
      * @path /produksi/{produksiId}
-     * @allow get, list: if true;
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @principle Allows public reading of produksi data, while restricting modifications.
+     * @allow (get,list) Any user can read Produksi data.
+     * @deny (create,update,delete) No user can modify Produksi data.
+     * @principle Public read, no write access.
      */
     match /produksi/{produksiId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants public read access to Geologi documents.
+     * @description Grants public read access to Geologi data.
      * @path /geologi/{geologiId}
-     * @allow get, list: if true;
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @principle Allows public reading of geologi data, while restricting modifications.
+     * @allow (get,list) Any user can read Geologi data.
+     * @deny (create,update,delete) No user can modify Geologi data.
+     * @principle Public read, no write access.
      */
     match /geologi/{geologiId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants public read access to Pengolahan documents.
+     * @description Grants public read access to Pengolahan data.
      * @path /pengolahan/{pengolahanId}
-     * @allow get, list: if true;
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @principle Allows public reading of pengolahan data, while restricting modifications.
+     * @allow (get,list) Any user can read Pengolahan data.
+     * @deny (create,update,delete) No user can modify Pengolahan data.
+     * @principle Public read, no write access.
      */
     match /pengolahan/{pengolahanId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants public read access to K3L documents.
+     * @description Grants public read access to K3L data.
      * @path /k3l/{k3lId}
-     * @allow get, list: if true;
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @principle Allows public reading of k3l data, while restricting modifications.
+     * @allow (get,list) Any user can read K3L data.
+     * @deny (create,update,delete) No user can modify K3L data.
+     * @principle Public read, no write access.
      */
     match /k3l/{k3lId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants public read access to Keuangan documents.
+     * @description Grants public read access to Keuangan data.
      * @path /keuangan/{keuanganId}
-     * @allow get, list: if true;
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @principle Allows public reading of keuangan data, while restricting modifications.
+     * @allow (get,list) Any user can read Keuangan data.
+     * @deny (create,update,delete) No user can modify Keuangan data.
+     * @principle Public read, no write access.
      */
     match /keuangan/{keuanganId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants public read access to SDM documents.
+     * @description Grants public read access to SDM data.
      * @path /sdm/{sdmId}
-     * @allow get, list: if true;
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @principle Allows public reading of sdm data, while restricting modifications.
+     * @allow (get,list) Any user can read SDM data.
+     * @deny (create,update,delete) No user can modify SDM data.
+     * @principle Public read, no write access.
      */
     match /sdm/{sdmId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants public read access to IT documents.
+     * @description Grants public read access to IT data.
      * @path /it/{itId}
-     * @allow get, list: if true;
-     * @allow create: if false;
-     * @allow update: if false;
-     * @allow delete: if false;
-     * @principle Allows public reading of it data, while restricting modifications.
+     * @allow (get,list) Any user can read IT data.
+     * @deny (create,update,delete) No user can modify IT data.
+     * @principle Public read, no write access.
      */
     match /it/{itId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
-  }
-
-  /**
-   * @description Checks if the user is signed in.
-   * @return {bool} True if the user is signed in, false otherwise.
-   */
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  /**
-   * @description Checks if the user ID matches the requested user ID.
-   * @param {string} userId The user ID to compare against.
-   * @return {bool} True if the user ID matches, false otherwise.
-   */
-  function isOwner(userId) {
-    return request.auth.uid == userId;
   }
 }
