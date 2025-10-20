@@ -32,7 +32,7 @@ import {
   Truck,
   Mountain,
   Cog,
-ShieldCheck,
+  ShieldCheck,
   Briefcase,
   Landmark,
   Users,
@@ -75,15 +75,16 @@ export default function SidebarNav() {
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <Link href={item.href}>
-                <SidebarMenuButton
-                  isActive={pathname === item.href}
-                  className="w-full justify-start"
-                >
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === item.href}
+                className="w-full justify-start"
+              >
+                <Link href={item.href}>
                   {item.icon}
                   <span>{item.label}</span>
-                </SidebarMenuButton>
-              </Link>
+                </Link>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
           <Collapsible open={isAdminOpen} onOpenChange={setIsAdminOpen}>
@@ -107,16 +108,17 @@ export default function SidebarNav() {
             <CollapsibleContent className="pl-4">
               {adminNavItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
-                  <Link href={item.href}>
-                    <SidebarMenuButton
-                      isActive={pathname === item.href}
-                      className="w-full justify-start"
-                      variant="ghost"
-                    >
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href}
+                    className="w-full justify-start"
+                    variant="ghost"
+                  >
+                    <Link href={item.href}>
                       {item.icon}
                       <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </Link>
+                    </Link>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </CollapsibleContent>
