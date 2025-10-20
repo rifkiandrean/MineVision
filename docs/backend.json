@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "MineVisionDashboard": {
@@ -275,6 +276,40 @@
       "required": [
         "id"
       ]
+    },
+    "KPI": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "KPI",
+      "type": "object",
+      "description": "Represents a Key Performance Indicator for the dashboard.",
+      "properties": {
+        "title": { "type": "string" },
+        "value": { "type": "string" },
+        "change": { "type": "string" },
+        "changeType": { "type": "string", "enum": ["positive", "negative"] }
+      }
+    },
+    "Announcement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Announcement",
+      "type": "object",
+      "description": "Represents an announcement on the dashboard.",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "department": { "type": "string" },
+        "priority": { "type": "string", "enum": ["High", "Medium", "Low"] }
+      }
+    },
+    "ProductionStatus": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProductionStatus",
+      "type": "object",
+      "description": "Represents the real-time status of a production area.",
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["Optimal", "Warning", "Halted"] }
+      }
     }
   },
   "auth": {
@@ -286,19 +321,27 @@
   "firestore": {
     "structure": [
       {
-        "path": "/mineVisionDashboards/{mineVisionDashboardId}",
+        "path": "/kpi/{kpiId}",
         "definition": {
-          "entityName": "MineVisionDashboard",
-          "schema": {
-            "$ref": "#/backend/entities/MineVisionDashboard"
-          },
-          "description": "Stores MineVision dashboard data. No authorization context required as the application is read-only.",
-          "params": [
-            {
-              "name": "mineVisionDashboardId",
-              "description": "The unique ID of the MineVision dashboard document."
-            }
-          ]
+          "entityName": "KPI",
+          "schema": { "$ref": "#/backend/entities/KPI" },
+          "description": "Stores KPI data for the main dashboard."
+        }
+      },
+      {
+        "path": "/announcements/{announcementId}",
+        "definition": {
+          "entityName": "Announcement",
+          "schema": { "$ref": "#/backend/entities/Announcement" },
+          "description": "Stores announcement data for the main dashboard."
+        }
+      },
+      {
+        "path": "/productionStatus/{statusId}",
+        "definition": {
+          "entityName": "ProductionStatus",
+          "schema": { "$ref": "#/backend/entities/ProductionStatus" },
+          "description": "Stores production status data for the main dashboard."
         }
       },
       {
@@ -414,6 +457,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. This segregation ensures that each collection has a homogeneous security posture. The MineVisionDashboard is stored in a top-level collection for easy access. There is no ownership specified, therefore all data is publicly accessible."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically."
   }
 }

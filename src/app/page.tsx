@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Card,
   CardContent,
@@ -17,64 +19,55 @@ import {
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/page-header';
 import { cn } from '@/lib/utils';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
-  const kpiData = [
-    {
-      title: 'Total Production (Ton)',
-      value: '1,250,000',
-      change: '+12.5%',
-      changeType: 'positive' as 'positive' | 'negative',
-      icon: <BarChart4 className="h-6 w-6 text-primary" />,
-    },
-    {
-      title: 'Equipment Availability',
-      value: '92.8%',
-      change: '-1.2%',
-      changeType: 'negative' as 'positive' | 'negative',
-      icon: <Truck className="h-6 w-6 text-primary" />,
-    },
-    {
-      title: 'Safety Incidents',
-      value: '2',
-      change: '+1',
-      changeType: 'negative' as 'positive' | 'negative',
-      icon: <AlertTriangle className="h-6 w-6 text-destructive" />,
-    },
-    {
-      title: 'Environmental Compliance',
-      value: '99.5%',
-      change: '+0.1%',
-      changeType: 'positive' as 'positive' | 'negative',
-      icon: <Activity className="h-6 w-6 text-primary" />,
-    },
-  ];
+  const { firestore } = useFirebase();
 
-  const announcements = [
-    {
-      title: 'Scheduled Maintenance for Crusher-01',
-      date: 'June 25, 2024',
-      department: 'Processing',
-      priority: 'High' as 'High' | 'Medium' | 'Low',
-    },
-    {
-      title: 'New Safety Protocols for Blasting Area',
-      date: 'June 24, 2024',
-      department: 'K3L',
-      priority: 'Medium' as 'High' | 'Medium' | 'Low',
-    },
-    {
-      title: 'Quarterly Town Hall Meeting',
-      date: 'June 22, 2024',
-      department: 'HRD',
-      priority: 'Low' as 'High' | 'Medium' | 'Low',
-    },
-  ];
+  const kpiQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'kpi'), limit(4));
+  }, [firestore]);
 
-  const priorityColors = {
+  const announcementsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+      collection(firestore, 'announcements'),
+      orderBy('date', 'desc'),
+      limit(3)
+    );
+  }, [firestore]);
+
+  const productionStatusQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'productionStatus');
+  }, [firestore]);
+
+  const { data: kpiData, isLoading: kpiLoading } = useCollection<any>(kpiQuery);
+  const { data: announcements, isLoading: announcementsLoading } =
+    useCollection<any>(announcementsQuery);
+  const { data: productionStatus, isLoading: productionStatusLoading } =
+    useCollection<any>(productionStatusQuery);
+
+  const kpiIcons: { [key: string]: React.ReactNode } = {
+    'Total Production (Ton)': <BarChart4 className="h-6 w-6 text-primary" />,
+    'Equipment Availability': <Truck className="h-6 w-6 text-primary" />,
+    'Safety Incidents': <AlertTriangle className="h-6 w-6 text-destructive" />,
+    'Environmental Compliance': <Activity className="h-6 w-6 text-primary" />,
+  };
+
+  const priorityColors: { [key: string]: string } = {
     High: 'bg-destructive/80 hover:bg-destructive',
-    Medium: 'bg-accent/80 hover:bg-accent',
+    Medium: 'bg-accent/80 hover:bg-accent text-accent-foreground',
     Low: 'bg-secondary hover:bg-secondary/90',
+  };
+
+  const statusColors: { [key: string]: string } = {
+    Optimal: 'border-green-500 text-green-500',
+    Warning: 'border-yellow-500 text-yellow-500',
+    Halted: 'border-red-500 text-red-500',
   };
 
   return (
@@ -86,26 +79,42 @@ export default function Home() {
         </Button>
       </PageHeader>
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-        {kpiData.map((kpi) => (
-          <Card key={kpi.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
-              {kpi.icon}
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{kpi.value}</div>
-              <p
-                className={`text-xs ${
-                  kpi.changeType === 'positive'
-                    ? 'text-green-600'
-                    : 'text-red-600'
-                }`}
-              >
-                {kpi.change} from last month
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        {kpiLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <Skeleton className="h-4 w-3/4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-1/2 mb-2" />
+                  <Skeleton className="h-3 w-1/4" />
+                </CardContent>
+              </Card>
+            ))
+          : kpiData?.map((kpi) => (
+              <Card key={kpi.id}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    {kpi.title}
+                  </CardTitle>
+                  {kpiIcons[kpi.title] || (
+                    <BarChart4 className="h-6 w-6 text-primary" />
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{kpi.value}</div>
+                  <p
+                    className={`text-xs ${
+                      kpi.changeType === 'positive'
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}
+                  >
+                    {kpi.change} from last month
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
       </div>
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
         <Card className="xl:col-span-2">
@@ -117,32 +126,46 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {announcements.map((ann) => (
-                <div
-                  key={ann.title}
-                  className="flex items-start space-x-4 rounded-md p-2 transition-colors hover:bg-muted/50"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-                    <Megaphone className="h-5 w-5 text-secondary-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium leading-none">
-                        {ann.title}
-                      </p>
-                      <Badge
-                        variant="secondary"
-                        className={cn('text-xs', priorityColors[ann.priority])}
-                      >
-                        {ann.priority}
-                      </Badge>
+              {announcementsLoading
+                ? Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-start space-x-4 p-2">
+                      <Skeleton className="h-10 w-10 rounded-lg" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {ann.department} &middot; {ann.date}
-                    </p>´
-                  </div>
-                </div>
-              ))}
+                  ))
+                : announcements?.map((ann) => (
+                    <div
+                      key={ann.id}
+                      className="flex items-start space-x-4 rounded-md p-2 transition-colors hover:bg-muted/50"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                        <Megaphone className="h-5 w-5 text-secondary-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium leading-none">
+                            {ann.title}
+                          </p>
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              'text-xs',
+                              priorityColors[ann.priority]
+                            )}
+                          >
+                            {ann.priority}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {ann.department} &middot;{' '}
+                          {new Date(ann.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
             </div>
           </CardContent>
         </Card>
@@ -152,38 +175,26 @@ export default function Home() {
             <CardDescription>Real-time production overview.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">
-                Coal Extraction
-              </span>
-              <Badge variant="outline" className="border-green-500 text-green-500">
-                Optimal
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">
-                Overburden Removal
-              </span>
-              <Badge variant="outline" className="border-green-500 text-green-500">
-                Optimal
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">
-                Crushing Plant
-              </span>
-              <Badge variant="outline" className="border-yellow-500 text-yellow-500">
-                Warning
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">
-                Barging & Shipment
-              </span>
-              <Badge variant="outline" className="border-red-500 text-red-500">
-                Halted
-              </Badge>
-            </div>
+            {productionStatusLoading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-6 w-1/4" />
+                  </div>
+                ))
+              : productionStatus?.map((status) => (
+                  <div key={status.id} className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {status.name}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={statusColors[status.status]}
+                    >
+                      {status.status}
+                    </Badge>
+                  </div>
+                ))}
           </CardContent>
         </Card>
       </div>
