@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { Check, X } from 'lucide-react';
+import { Check, X, Printer } from 'lucide-react';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
 
@@ -44,6 +44,10 @@ export function LeaveApprovalTable() {
     })
   };
 
+  const handlePrint = () => {
+    window.print();
+  }
+
   const statusColors: { [key: string]: string } = {
     pending: 'bg-yellow-500/80 text-yellow-foreground',
     approved: 'bg-green-500/80 text-green-foreground',
@@ -51,7 +55,11 @@ export function LeaveApprovalTable() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    // Add a day to the date to correct for potential timezone issues
+    date.setDate(date.getDate() + 1);
+    return date.toLocaleDateString('id-ID', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -131,6 +139,14 @@ export function LeaveApprovalTable() {
                           </Button>
                         </>
                       )}
+                       <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 text-primary hover:bg-primary/10 border-primary/30"
+                        onClick={handlePrint}
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
