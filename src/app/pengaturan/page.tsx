@@ -1,5 +1,11 @@
 import PageHeader from '@/components/page-header';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -13,13 +19,28 @@ export default function SettingsPage() {
       <PageHeader title="Pengaturan" />
       <Card>
         <CardHeader>
-          <CardTitle>Halaman Pengaturan</CardTitle>
+          <CardTitle>Konfigurasi Aplikasi</CardTitle>
           <CardDescription>
-            Ini adalah placeholder untuk halaman pengaturan aplikasi.
+            Kelola pengaturan halaman dan hak akses pengguna.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p>Opsi dan preferensi aplikasi akan dapat dikonfigurasi di sini.</p>
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="item-1">
+              <AccordionTrigger>Pengaturan Halaman</AccordionTrigger>
+              <AccordionContent>
+                Placeholder untuk opsi konfigurasi halaman, seperti tema,
+                bahasa, atau notifikasi.
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="item-2">
+              <AccordionTrigger>Hak Akses & Peran Pengguna</AccordionTrigger>
+              <AccordionContent>
+                Placeholder untuk mengelola aturan akses akun pengguna dan
+                peran di dalam aplikasi.
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
     </main>
