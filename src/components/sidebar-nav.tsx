@@ -11,6 +11,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import {
   Collapsible,
@@ -42,6 +43,7 @@ import {
   LogOut,
   UserCircle,
   Pickaxe,
+  Settings,
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 
@@ -134,6 +136,17 @@ export default function SidebarNav() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
+        <SidebarSeparator />
+        <SidebarMenu>
+            <SidebarMenuItem>
+                <Link href="/pengaturan">
+                    <SidebarMenuButton isActive={pathname === '/pengaturan'} className="w-full justify-start">
+                        <Settings />
+                        <span>Pengaturan</span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+        </SidebarMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
