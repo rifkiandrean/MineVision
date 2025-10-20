@@ -78,7 +78,7 @@ export default function SettingsPage() {
     return collection(firestore, 'users');
   }, [firestore]);
   
-  const { data: userAccounts, isLoading: usersLoading } = useCollection<{email: string; department: string}>(usersQuery);
+  const { data: userAccounts, isLoading: usersLoading } = useCollection<{id: string; email: string; department: string}>(usersQuery);
 
   const [selectedAccount, setSelectedAccount] = useState<string>('xpaeRpF1exOJbEwlTdLDh0LOBRl2');
 
@@ -251,12 +251,14 @@ export default function SettingsPage() {
 
     } catch (error: any) {
       // This catch block handles Auth errors (like email-already-in-use)
-      // Firestore permission errors are handled by setDocumentNonBlocking
-      toast({
-        variant: 'destructive',
-        title: 'Gagal Membuat Akun',
-        description: error.message || 'Terjadi kesalahan.',
-      });
+      // Firestore permission errors from setDocumentNonBlocking are handled globally.
+      if (error.code?.startsWith('auth/')) {
+        toast({
+          variant: 'destructive',
+          title: 'Gagal Membuat Akun',
+          description: error.message || 'Terjadi kesalahan otentikasi.',
+        });
+      }
     } finally {
       setIsCreatingUser(false);
     }
@@ -500,4 +502,5 @@ export default function SettingsPage() {
       )}
     </main>
   );
+    
     
