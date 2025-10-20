@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PageHeader from '@/components/page-header';
 import {
   Accordion,
@@ -22,14 +22,21 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const initialMenuItems = [
-    { id: 1, name: 'Dashboard', path: '/' },
-    { id: 2, name: 'Produksi', path: '/produksi' },
-    { id: 3, name: 'Geologi', path: '/geologi' },
-    { id: 4, name: 'Pengolahan', path: '/pengolahan' },
-    { id: 5, name: 'K3L', path: '/k3l' },
-]
+  { id: 1, name: 'Dashboard', path: '/' },
+  { id: 2, name: 'Produksi', path: '/produksi' },
+  { id: 3, name: 'Geologi', path: '/geologi' },
+  { id: 4, name: 'Pengolahan', path: '/pengolahan' },
+  { id: 5, name: 'K3L', path: '/k3l' },
+];
 
 const allPermissions = [
   { id: 'dashboard', label: 'Akses Dashboard Utama' },
@@ -45,40 +52,65 @@ const allPermissions = [
   { id: 'sdm_approval', label: 'Izin Menyetujui Cuti (SDM)' },
 ];
 
+// Mock user accounts for demonstration
+const userAccounts = [
+  { id: 'usr-001', email: 'rifkiandrean@gmail.com', role: 'Super Admin' },
+  { id: 'usr-002', email: 'manager.produksi@example.com', role: 'Manager' },
+  { id: 'usr-003', email: 'staff.hr@example.com', role: 'Staff' },
+];
+
 export default function SettingsPage() {
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
+  const [selectedAccount, setSelectedAccount] = useState<string>('usr-001');
   const [permissions, setPermissions] = useState(() => {
     const initialPermissions: { [key: string]: boolean } = {};
-    allPermissions.forEach(p => {
-        initialPermissions[p.id] = true; // Default to all checked for Admin role
+    allPermissions.forEach((p) => {
+      initialPermissions[p.id] = true; // Default to all checked for Admin role
     });
     return initialPermissions;
   });
 
+  const isSuperAdmin = userAccounts.find(acc => acc.id === selectedAccount)?.email === 'rifkiandrean@gmail.com';
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+        const allTruePermissions: { [key: string]: boolean } = {};
+        allPermissions.forEach(p => {
+            allTruePermissions[p.id] = true;
+        });
+        setPermissions(allTruePermissions);
+    }
+    // For other accounts, you might want to load their specific permissions here.
+    // For now, we'll just let them be editable.
+  }, [selectedAccount, isSuperAdmin]);
+
 
   const handleMenuItemChange = (id: number, field: 'name' | 'path', value: string) => {
-    setMenuItems(menuItems.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
+    setMenuItems(
+      menuItems.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    );
   };
 
   const addMenuItem = () => {
-    const newId = menuItems.length > 0 ? Math.max(...menuItems.map(item => item.id)) + 1 : 1;
+    const newId =
+      menuItems.length > 0 ? Math.max(...menuItems.map((item) => item.id)) + 1 : 1;
     setMenuItems([...menuItems, { id: newId, name: 'New Menu', path: '/new-path' }]);
   };
 
   const removeMenuItem = (id: number) => {
-    setMenuItems(menuItems.filter(item => item.id !== id));
-  };
-  
-  const handlePermissionChange = (permissionId: string) => {
-    setPermissions(prev => ({
-        ...prev,
-        [permissionId]: !prev[permissionId]
-    }));
+    setMenuItems(menuItems.filter((item) => item.id !== id));
   };
 
+  const handlePermissionChange = (permissionId: string) => {
+    if (isSuperAdmin) return; // Prevent changes for Super Admin
+    setPermissions((prev) => ({
+      ...prev,
+      [permissionId]: !prev[permissionId],
+    }));
+  };
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -91,70 +123,88 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+          <Accordion
+            type="single"
+            collapsible
+            className="w-full"
+            defaultValue="item-1"
+          >
             <AccordionItem value="item-1">
               <AccordionTrigger>Pengaturan Halaman</AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="website-name">Nama Website</Label>
-                        <Input 
-                            id="website-name" 
-                            value={websiteName}
-                            onChange={(e) => setWebsiteName(e.target.value)}
-                            placeholder="e.g. MineVision"
-                        />
-                         <p className="text-sm text-muted-foreground">
-                            Ini akan mengubah judul yang muncul di tab browser.
-                        </p>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="website-name">Nama Website</Label>
+                    <Input
+                      id="website-name"
+                      value={websiteName}
+                      onChange={(e) => setWebsiteName(e.target.value)}
+                      placeholder="e.g. MineVision"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Ini akan mengubah judul yang muncul di tab browser.
+                    </p>
+                  </div>
 
-                    <div className="space-y-2">
-                         <Label htmlFor="website-logo">Logo Website</Label>
-                         <Input id="website-logo" type="file" className="max-w-xs" />
-                         <p className="text-sm text-muted-foreground">
-                            Unggah logo baru (disarankan format .png atau .svg).
-                        </p>
-                    </div>
-                    
-                    <Separator />
+                  <div className="space-y-2">
+                    <Label htmlFor="website-logo">Logo Website</Label>
+                    <Input id="website-logo" type="file" className="max-w-xs" />
+                    <p className="text-sm text-muted-foreground">
+                      Unggah logo baru (disarankan format .png atau .svg).
+                    </p>
+                  </div>
 
-                    <div className="space-y-4">
-                        <div>
-                            <h4 className="font-medium">Menu Halaman</h4>
-                            <p className="text-sm text-muted-foreground">
-                                Atur item navigasi yang muncul di sidebar.
-                            </p>
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium">Menu Halaman</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Atur item navigasi yang muncul di sidebar.
+                      </p>
+                    </div>
+                    <div className="space-y-3">
+                      {menuItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 p-2 rounded-md border"
+                        >
+                          <Input
+                            value={item.name}
+                            onChange={(e) =>
+                              handleMenuItemChange(item.id, 'name', e.target.value)
+                            }
+                            className="h-9"
+                          />
+                          <Input
+                            value={item.path}
+                            onChange={(e) =>
+                              handleMenuItemChange(item.id, 'path', e.target.value)
+                            }
+                            className="h-9"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive h-9 w-9"
+                            onClick={() => removeMenuItem(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <div className="space-y-3">
-                            {menuItems.map(item => (
-                                <div key={item.id} className="flex items-center gap-2 p-2 rounded-md border">
-                                    <Input 
-                                      value={item.name} 
-                                      onChange={(e) => handleMenuItemChange(item.id, 'name', e.target.value)}
-                                      className="h-9"
-                                    />
-                                    <Input 
-                                      value={item.path} 
-                                      onChange={(e) => handleMenuItemChange(item.id, 'path', e.target.value)}
-                                      className="h-9"
-                                    />
-                                    <Button variant="ghost" size="icon" className="text-destructive h-9 w-9" onClick={() => removeMenuItem(item.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                         <Button variant="outline" onClick={addMenuItem}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Tambah Menu Halaman
-                        </Button>
+                      ))}
                     </div>
+                    <Button variant="outline" onClick={addMenuItem}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Tambah Menu Halaman
+                    </Button>
+                  </div>
 
-                    <div className="flex justify-end pt-4">
-                        <Button className="bg-primary">Simpan Perubahan Halaman</Button>
-                    </div>
-
+                  <div className="flex justify-end pt-4">
+                    <Button className="bg-primary">
+                      Simpan Perubahan Halaman
+                    </Button>
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -162,29 +212,62 @@ export default function SettingsPage() {
               <AccordionTrigger>Hak Akses & Peran Pengguna</AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-6">
-                    <div>
-                        <h4 className="font-medium">Peran: Admin</h4>
-                        <p className="text-sm text-muted-foreground">
-                            Atur izin akses untuk peran Admin. Peran ini memiliki akses ke seluruh fitur secara default.
+                  <div className="space-y-2 max-w-sm">
+                     <Label htmlFor="account-select">Pilih Akun</Label>
+                      <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+                        <SelectTrigger id="account-select">
+                          <SelectValue placeholder="Pilih akun untuk dikonfigurasi" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {userAccounts.map(account => (
+                             <SelectItem key={account.id} value={account.id}>
+                               {account.email} ({account.role})
+                             </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-muted-foreground">
+                        Pilih akun untuk mengatur izin aksesnya di bawah ini.
+                      </p>
+                  </div>
+
+                   <Separator />
+
+                  <div>
+                    <h4 className="font-medium">Izin Akses untuk Akun Terpilih</h4>
+                     <p className="text-sm text-muted-foreground">
+                        Atur izin akses untuk <span className="font-semibold">{userAccounts.find(acc => acc.id === selectedAccount)?.email}</span>.
+                      </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 rounded-md border p-4">
+                    {allPermissions.map((permission) => (
+                      <div
+                        key={permission.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`perm-${permission.id}`}
+                          checked={permissions[permission.id]}
+                          onCheckedChange={() => handlePermissionChange(permission.id)}
+                          disabled={isSuperAdmin}
+                        />
+                        <Label
+                          htmlFor={`perm-${permission.id}`}
+                          className={cn("font-normal", isSuperAdmin ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer")}
+                        >
+                          {permission.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                   {isSuperAdmin && (
+                        <p className="text-sm text-accent-foreground rounded-md bg-accent p-2">
+                            Akun Super Admin memiliki semua izin akses dan tidak dapat diubah.
                         </p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 rounded-md border p-4">
-                       {allPermissions.map(permission => (
-                         <div key={permission.id} className="flex items-center space-x-2">
-                            <Checkbox 
-                                id={`perm-${permission.id}`} 
-                                checked={permissions[permission.id]}
-                                onCheckedChange={() => handlePermissionChange(permission.id)}
-                            />
-                            <Label htmlFor={`perm-${permission.id}`} className="font-normal cursor-pointer">
-                                {permission.label}
-                            </Label>
-                        </div>
-                       ))}
-                    </div>
-                     <div className="flex justify-end pt-4">
-                        <Button className="bg-primary">Simpan Perubahan Hak Akses</Button>
-                    </div>
+                    )}
+                  <div className="flex justify-end pt-4">
+                    <Button className="bg-primary" disabled={isSuperAdmin}>Simpan Perubahan Hak Akses</Button>
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
