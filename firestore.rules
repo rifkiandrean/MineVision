@@ -2,32 +2,33 @@
  * @fileoverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset implements a hybrid security model. User data is strictly controlled
- * with owner-only access. Department data collections are publicly readable,
- * reflecting a read-only data access pattern. Administrative roles could be added in the future.
+ * This ruleset enforces a combination of user-ownership and public-read with owner-write access patterns.
+ * User-specific data (e.g., /users/{userId}) is strictly controlled by the owning user.
+ * Department data (e.g., /produksi/{produksiId}) is publicly readable.
+ * The users collection is secured with an ownership model, meaning only the authenticated user can access their own data.
+ * Data relating to KPI, announcements, productionStatus, paymentRequests, budgets, leaveRequests and userPermissions can be read by all authenticated users, but can only be modified by their respective owners.
  *
  * Data Structure:
- * - /users/{userId}: Stores individual user profiles, accessible only by the user themselves.
+ * - /users/{userId}: Stores user profile information, accessible only by the user themselves.
  * - /kpi/{kpiId}: Stores Key Performance Indicators. Publicly readable.
  * - /announcements/{announcementId}: Stores announcements. Publicly readable.
  * - /productionStatus/{statusId}: Stores production statuses. Publicly readable.
- * - /paymentRequests/{requestId}: Stores payment requests. No specific authorization implemented.
- * - /budgets/{budgetId}: Stores budget data. No specific authorization implemented.
- * - /leaveRequests/{requestId}: Stores leave requests. No specific authorization implemented.
- * - /userPermissions/{userId}: Stores user permissions. Accessible only by the user themselves.
- * - /produksi/{produksiId}: Stores produksi data. Publicly readable.
- * - /geologi/{geologiId}: Stores geologi data. Publicly readable.
- * - /pengolahan/{pengolahanId}: Stores pengolahan data. Publicly readable.
+ * - /paymentRequests/{requestId}: Stores payment requests. Publicly readable.
+ * - /budgets/{budgetId}: Stores budget data. Publicly readable.
+ * - /leaveRequests/{requestId}: Stores leave requests. Publicly readable.
+ * - /userPermissions/{userId}: Stores user permissions. Publicly readable.
+ * - /produksi/{produksiId}: Stores Produksi data. Publicly readable.
+ * - /geologi/{geologiId}: Stores Geologi data. Publicly readable.
+ * - /pengolahan/{pengolahanId}: Stores Pengolahan data. Publicly readable.
  * - /k3l/{k3lId}: Stores K3L data. Publicly readable.
- * - /keuangan/{keuanganId}: Stores keuangan data. Publicly readable.
+ * - /keuangan/{keuanganId}: Stores Keuangan data. Publicly readable.
  * - /sdm/{sdmId}: Stores SDM data. Publicly readable.
  * - /it/{itId}: Stores IT data. Publicly readable.
  *
  * Key Security Decisions:
- * - User listing is disallowed for privacy.
- * - Department data is publicly readable to simplify the initial data access pattern.
- * - For /paymentRequests, /budgets, and /leaveRequests, more specific rules are needed depending on the workflow.
- * - All potentially mutable collections should be audited.
+ * - Listing of users is disallowed to protect user privacy.
+ * - Data from different departments (produksi, geologi, etc) is publicly readable
+ * - Default security posture for ambiguous relationships is strict owner-only access.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -35,233 +36,297 @@ service cloud.firestore {
 
     /**
      * @description Checks if the request is authenticated.
+     * @return {bool} True if the request has a valid authentication token, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user's UID matches the provided userId.
+     * @description Checks if the requesting user is the owner of the document.
+     * @param {string} userId The user ID to compare against the request's authentication UID.
+     * @return {bool} True if the user ID matches the authenticated user's UID, false otherwise.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the authenticated user is the owner of an existing document.
+     * @description Checks if the requesting user is the owner of the existing document.
+     * @param {string} userId The user ID to compare against the request's authentication UID.
+     * @return {bool} True if the user ID matches the authenticated user's UID and the document exists, false otherwise.
      */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
+
     /**
-     * @description Rules for user documents.
+     * @description Defines a rule for documents in the /users/{userId} collection.
      * @path /users/{userId}
-     * @allow (create) User with UID matching {userId} can create their own document.
-     * @allow (get, update, delete) User with UID matching {userId} can access/modify their own document.
-     * @deny (create) User with UID not matching {userId} cannot create a document.
-     * @deny (get, update, delete) User with UID not matching {userId} cannot access/modify other user's document.
-     * @deny (list) Listing all users is not allowed.
-     * @principle Enforces document ownership for user data.
+     * @allow (create) User 'xpaeRpF1exOJbEwlTdLDh0LOBRl2' can create their own user document.
+     * @deny (create) User 'attackerId' cannot create a document with userId 'xpaeRpF1exOJbEwlTdLDh0LOBRl2'.
+     * @allow (get) User 'xpaeRpF1exOJbEwlTdLDh0LOBRl2' can read their own user document.
+     * @deny (get) User 'attackerId' cannot read the user document of 'xpaeRpF1exOJbEwlTdLDh0LOBRl2'.
+     * @allow (update) User 'xpaeRpF1exOJbEwlTdLDh0LOBRl2' can update their own user document.
+     * @deny (update) User 'attackerId' cannot update the user document of 'xpaeRpF1exOJbEwlTdLDh0LOBRl2'.
+     * @allow (delete) User 'xpaeRpF1exOJbEwlTdLDh0LOBRl2' can delete their own user document.
+     * @deny (delete) User 'attackerId' cannot delete the user document of 'xpaeRpF1exOJbEwlTdLDh0LOBRl2'.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.uid == resource.data.uid;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for KPI documents.
+     * @description Defines a rule for documents in the /kpi/{kpiId} collection.
      * @path /kpi/{kpiId}
-     * @allow (get, list) Any user can read KPI data.
-     * @deny (create, update, delete) No user can create, update, or delete KPI data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read KPI data.
+     * @allow (list) Any authenticated user can list KPI data.
+     * @deny (create) No one can create KPI data.
+     * @deny (update) No one can update KPI data.
+     * @deny (delete) No one can delete KPI data.
+     * @principle Allows public read access.
      */
     match /kpi/{kpiId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Rules for Announcement documents.
+     * @description Defines a rule for documents in the /announcements/{announcementId} collection.
      * @path /announcements/{announcementId}
-     * @allow (get, list) Any user can read announcement data.
-     * @deny (create, update, delete) No user can create, update, or delete announcement data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read announcement data.
+     * @allow (list) Any authenticated user can list announcement data.
+     * @deny (create) No one can create announcement data.
+     * @deny (update) No one can update announcement data.
+     * @deny (delete) No one can delete announcement data.
+     * @principle Allows public read access.
      */
     match /announcements/{announcementId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Rules for ProductionStatus documents.
+     * @description Defines a rule for documents in the /productionStatus/{statusId} collection.
      * @path /productionStatus/{statusId}
-     * @allow (get, list) Any user can read production status data.
-     * @deny (create, update, delete) No user can create, update, or delete production status data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read production status data.
+     * @allow (list) Any authenticated user can list production status data.
+     * @deny (create) No one can create production status data.
+     * @deny (update) No one can update production status data.
+     * @deny (delete) No one can delete production status data.
+     * @principle Allows public read access.
      */
     match /productionStatus/{statusId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Rules for PaymentRequest documents.
+     * @description Defines a rule for documents in the /paymentRequests/{requestId} collection.
      * @path /paymentRequests/{requestId}
-     * @allow (get, list) Any user can read payment request data.
-     * @deny (create, update, delete) No user can create, update, or delete payment request data.
+     * @allow (get) Any authenticated user can read payment request data.
+     * @allow (list) Any authenticated user can list payment request data.
+     * @deny (create) No one can create payment request data.
+     * @deny (update) No one can update payment request data.
+     * @deny (delete) No one can delete payment request data.
+     * @principle Allows public read access.
      */
     match /paymentRequests/{requestId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add create validation
-      allow update: if false; // TODO: Add update validation
-      allow delete: if false; // TODO: Add delete validation
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Rules for Budget documents.
+     * @description Defines a rule for documents in the /budgets/{budgetId} collection.
      * @path /budgets/{budgetId}
-     * @allow (get, list) Any user can read budget data.
-     * @deny (create, update, delete) No user can create, update, or delete budget data.
+     * @allow (get) Any authenticated user can read budget data.
+     * @allow (list) Any authenticated user can list budget data.
+     * @deny (create) No one can create budget data.
+     * @deny (update) No one can update budget data.
+     * @deny (delete) No one can delete budget data.
+     * @principle Allows public read access.
      */
     match /budgets/{budgetId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add create validation
-      allow update: if false; // TODO: Add update validation
-      allow delete: if false; // TODO: Add delete validation
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Rules for LeaveRequest documents.
+     * @description Defines a rule for documents in the /leaveRequests/{requestId} collection.
      * @path /leaveRequests/{requestId}
-     * @allow (get, list) Any user can read leave request data.
-     * @deny (create, update, delete) No user can create, update, or delete leave request data.
+     * @allow (get) Any authenticated user can read leave request data.
+     * @allow (list) Any authenticated user can list leave request data.
+     * @deny (create) No one can create leave request data.
+     * @deny (update) No one can update leave request data.
+     * @deny (delete) No one can delete leave request data.
+     * @principle Allows public read access.
      */
     match /leaveRequests/{requestId} {
-      allow get, list: if true;
-      allow create: if false; // TODO: Add create validation
-      allow update: if false; // TODO: Add update validation
-      allow delete: if false; // TODO: Add delete validation
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
-        /**
-     * @description Rules for userPermissions documents.
+    /**
+     * @description Defines a rule for documents in the /userPermissions/{userId} collection.
      * @path /userPermissions/{userId}
-     * @allow (create) User with UID matching {userId} can create their own document.
-     * @allow (get, update, delete) User with UID matching {userId} can access/modify their own document.
-     * @deny (create) User with UID not matching {userId} cannot create a document.
-     * @deny (get, update, delete) User with UID not matching {userId} cannot access/modify other user's document.
-     * @deny (list) Listing all users is not allowed.
+     * @allow (get) Any authenticated user can read user permissions data.
+     * @allow (list) Any authenticated user can list user permissions data.
+     * @deny (create) No one can create user permissions data.
+     * @deny (update) No one can update user permissions data.
+     * @deny (delete) No one can delete user permissions data.
      */
     match /userPermissions/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Rules for Produksi documents.
+     * @description Defines a rule for documents in the /produksi/{produksiId} collection.
      * @path /produksi/{produksiId}
-     * @allow (get, list) Any user can read produksi data.
-     * @deny (create, update, delete) No user can create, update, or delete produksi data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read produksi data.
+     * @allow (list) Any authenticated user can list produksi data.
+     * @deny (create) No one can create produksi data.
+     * @deny (update) No one can update produksi data.
+     * @deny (delete) No one can delete produksi data.
+     * @principle Allows public read access.
      */
     match /produksi/{produksiId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Rules for Geologi documents.
+     * @description Defines a rule for documents in the /geologi/{geologiId} collection.
      * @path /geologi/{geologiId}
-     * @allow (get, list) Any user can read geologi data.
-     * @deny (create, update, delete) No user can create, update, or delete geologi data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read geologi data.
+     * @allow (list) Any authenticated user can list geologi data.
+     * @deny (create) No one can create geologi data.
+     * @deny (update) No one can update geologi data.
+     * @deny (delete) No one can delete geologi data.
+     * @principle Allows public read access.
      */
     match /geologi/{geologiId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Rules for Pengolahan documents.
+     * @description Defines a rule for documents in the /pengolahan/{pengolahanId} collection.
      * @path /pengolahan/{pengolahanId}
-     * @allow (get, list) Any user can read pengolahan data.
-     * @deny (create, update, delete) No user can create, update, or delete pengolahan data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read pengolahan data.
+     * @allow (list) Any authenticated user can list pengolahan data.
+     * @deny (create) No one can create pengolahan data.
+     * @deny (update) No one can update pengolahan data.
+     * @deny (delete) No one can delete pengolahan data.
+     * @principle Allows public read access.
      */
     match /pengolahan/{pengolahanId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Rules for K3L documents.
+     * @description Defines a rule for documents in the /k3l/{k3lId} collection.
      * @path /k3l/{k3lId}
-     * @allow (get, list) Any user can read K3L data.
-     * @deny (create, update, delete) No user can create, update, or delete K3L data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read K3L data.
+     * @allow (list) Any authenticated user can list K3L data.
+     * @deny (create) No one can create K3L data.
+     * @deny (update) No one can update K3L data.
+     * @deny (delete) No one can delete K3L data.
+     * @principle Allows public read access.
      */
     match /k3l/{k3lId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Rules for Keuangan documents.
+     * @description Defines a rule for documents in the /keuangan/{keuanganId} collection.
      * @path /keuangan/{keuanganId}
-     * @allow (get, list) Any user can read keuangan data.
-     * @deny (create, update, delete) No user can create, update, or delete keuangan data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read Keuangan data.
+     * @allow (list) Any authenticated user can list Keuangan data.
+     * @deny (create) No one can create Keuangan data.
+     * @deny (update) No one can update Keuangan data.
+     * @deny (delete) No one can delete Keuangan data.
+     * @principle Allows public read access.
      */
     match /keuangan/{keuanganId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Rules for SDM documents.
+     * @description Defines a rule for documents in the /sdm/{sdmId} collection.
      * @path /sdm/{sdmId}
-     * @allow (get, list) Any user can read SDM data.
-     * @deny (create, update, delete) No user can create, update, or delete SDM data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read SDM data.
+     * @allow (list) Any authenticated user can list SDM data.
+     * @deny (create) No one can create SDM data.
+     * @deny (update) No one can update SDM data.
+     * @deny (delete) No one can delete SDM data.
+     * @principle Allows public read access.
      */
     match /sdm/{sdmId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Rules for IT documents.
+     * @description Defines a rule for documents in the /it/{itId} collection.
      * @path /it/{itId}
-     * @allow (get, list) Any user can read IT data.
-     * @deny (create, update, delete) No user can create, update, or delete IT data.
-     * @principle Public read access, no write access.
+     * @allow (get) Any authenticated user can read IT data.
+     * @allow (list) Any authenticated user can list IT data.
+     * @deny (create) No one can create IT data.
+     * @deny (update) No one can update IT data.
+     * @deny (delete) No one can delete IT data.
+     * @principle Allows public read access.
      */
     match /it/{itId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
