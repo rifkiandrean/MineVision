@@ -60,7 +60,7 @@ const allPermissions = [
 ];
 
 const initialUserAccounts = [
-  { id: 'usr-001', email: 'rifkiandrean@gmail.com', role: 'Super Admin' },
+  { id: 'usr-001', email: 'rifkiandrean@gmail.com', role: 'Super Admin', isDefault: true },
   { id: 'usr-002', email: 'manager.produksi@example.com', role: 'Manager' },
   { id: 'usr-003', email: 'staff.hr@example.com', role: 'Staff' },
 ];
@@ -97,6 +97,26 @@ export default function SettingsPage() {
 
   const isSuperAdmin = user?.email === 'rifkiandrean@gmail.com';
   const selectedUserIsSuperAdmin = userAccounts.find(acc => acc.id === selectedAccount)?.role === 'Super Admin';
+
+  useEffect(() => {
+    async function createDefaultUser(email: string, pass: string) {
+      if (!auth) return;
+      try {
+        await createUserWithEmailAndPassword(auth, email, pass);
+        toast({ title: 'Akun Demo Dibuat', description: `Akun untuk ${email} telah dibuat dengan password 'password123'.` });
+      } catch (error: any) {
+        if (error.code !== 'auth/email-already-in-use') {
+          console.error(`Failed to create default user ${email}:`, error);
+        }
+      }
+    }
+
+    if (isSuperAdmin) {
+      createDefaultUser('rifkiandrean@gmail.com', 'password123');
+      createDefaultUser('thoriq@gmail.com', 'password123');
+    }
+  }, [auth, isSuperAdmin, toast]);
+
 
   useEffect(() => {
       if (!isUserLoading && !isSuperAdmin) {
