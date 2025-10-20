@@ -76,16 +76,13 @@ export default function SidebarNav() {
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <Link href={item.href} passHref>
+              <Link href={item.href}>
                 <SidebarMenuButton
                   isActive={pathname === item.href}
                   className="w-full justify-start"
-                  asChild
                 >
-                  <a href={item.href}>
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </a>
+                  {item.icon}
+                  <span>{item.label}</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
@@ -111,17 +108,14 @@ export default function SidebarNav() {
             <CollapsibleContent className="pl-4">
               {adminNavItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
-                  <Link href={item.href} passHref>
+                  <Link href={item.href}>
                     <SidebarMenuButton
                       isActive={pathname === item.href}
                       className="w-full justify-start"
                       variant="ghost"
-                      asChild
                     >
-                       <a href={item.href}>
                         {item.icon}
                         <span>{item.label}</span>
-                       </a>
                     </SidebarMenuButton>
                   </Link>
                 </SidebarMenuItem>
