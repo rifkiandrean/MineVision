@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -75,16 +76,15 @@ export default function SidebarNav() {
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === item.href}
-                className="w-full justify-start"
-              >
-                <Link href={item.href}>
+              <Link href={item.href}>
+                <SidebarMenuButton
+                  isActive={pathname === item.href}
+                  className="w-full justify-start"
+                >
                   {item.icon}
                   <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
           ))}
           <Collapsible open={isAdminOpen} onOpenChange={setIsAdminOpen}>
@@ -108,17 +108,16 @@ export default function SidebarNav() {
             <CollapsibleContent className="pl-4">
               {adminNavItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    className="w-full justify-start"
-                    variant="ghost"
-                  >
-                    <Link href={item.href}>
+                  <Link href={item.href}>
+                    <SidebarMenuButton
+                      isActive={pathname === item.href}
+                      className="w-full justify-start"
+                      variant="ghost"
+                    >
                       {item.icon}
                       <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
+                    </SidebarMenuButton>
+                  </Link>
                 </SidebarMenuItem>
               ))}
             </CollapsibleContent>
