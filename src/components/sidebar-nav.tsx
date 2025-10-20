@@ -74,7 +74,7 @@ export default function SidebarNav() {
     router.push('/login');
   };
 
-  const isSuperAdmin = user?.uid === 'xpaeRpF1exOJbEwlTdLDh0LOBRl2';
+  const isSuperAdmin = user?.uid === 'z18z4zzOExSE5EYf3dJf39Fdq0x1';
 
 
   return (
@@ -188,5 +188,7 @@ export default function SidebarNav() {
     </>
   );
 }
+
+    
 
     

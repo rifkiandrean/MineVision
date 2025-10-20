@@ -74,13 +74,13 @@ export default function SettingsPage() {
   const [menuItems, setMenuItems] = useState(initialMenuItems);
 
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return collection(firestore, 'users');
-  }, [firestore]);
+  }, [firestore, user]);
   
   const { data: userAccounts, isLoading: usersLoading } = useCollection<{id: string; email: string; department: string}>(usersQuery);
 
-  const [selectedAccount, setSelectedAccount] = useState<string>('xpaeRpF1exOJbEwlTdLDh0LOBRl2');
+  const [selectedAccount, setSelectedAccount] = useState<string>('z18z4zzOExSE5EYf3dJf39Fdq0x1');
 
   const permissionsDocRef = useMemoFirebase(() => {
     if (!firestore || !selectedAccount) return null;
@@ -96,7 +96,7 @@ export default function SettingsPage() {
   const [newUserDepartment, setNewUserDepartment] = useState('Staff');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  const isSuperAdmin = user?.uid === 'xpaeRpF1exOJbEwlTdLDh0LOBRl2';
+  const isSuperAdmin = user?.uid === 'z18z4zzOExSE5EYf3dJf39Fdq0x1';
   const selectedUser = userAccounts?.find(acc => acc.id === selectedAccount);
   const selectedUserIsSuperAdmin = selectedUser?.department === 'Super Admin';
 
@@ -105,7 +105,7 @@ export default function SettingsPage() {
         if (!auth || !firestore) return;
         
         const usersToCreate = [
-            { email: 'rifkiandrean@gmail.com', pass: 'password123', uid: 'xpaeRpF1exOJbEwlTdLDh0LOBRl2', department: 'Super Admin' },
+            { email: 'rifkiandrean@gmail.com', pass: 'password123', uid: 'z18z4zzOExSE5EYf3dJf39Fdq0x1', department: 'Super Admin' },
             { email: 'thoriq@gmail.com', pass: 'password123', uid: '8zoyGpdLOiaFyhL17sQWYqvFWz12', department: 'Manager' },
         ];
 
@@ -140,7 +140,9 @@ export default function SettingsPage() {
 
 
   useEffect(() => {
-      if (!isUserLoading && !isSuperAdmin) {
+      if (!isUserLoading && !user) {
+          router.push('/login');
+      } else if (!isUserLoading && user && !isSuperAdmin) {
           router.push('/');
       }
   }, [user, isUserLoading, isSuperAdmin, router]);
@@ -238,7 +240,7 @@ export default function SettingsPage() {
 
       // Initialize permissions for the new user
       const newUserPermsRef = doc(firestore, 'userPermissions', newUser.uid);
-      setDocumentNonBlocking(newUserPermsRef, { userId: newUser.uid, permissions: defaultPermissions }, {});
+      setDocumentNonBlocking(newUserPermsRef, { userId: newUser.uid, permissions: defaultPermissions }, { merge: true });
 
       toast({
         title: 'Akun Dibuat',
@@ -503,4 +505,6 @@ export default function SettingsPage() {
     </main>
   );
     
+    
+
     
