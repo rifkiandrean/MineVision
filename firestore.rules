@@ -2,18 +2,33 @@
  * @fileoverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset enforces a user-ownership model for user profiles and read-only access for department data.
+ * This ruleset implements a hybrid security model. User data is strictly controlled
+ * with owner-only access. Department data collections are publicly readable,
+ * while write access is completely disabled, assuming data is managed
+ * via a backend admin interface. The userPermissions collection enforces a user-based
+ * access control list.
  *
  * Data Structure:
- * - `/users/{userId}`: Stores individual user profiles. Access is restricted to the owning user.
- * - `/kpi/{kpiId}`, `/announcements/{announcementId}`, `/productionStatus/{statusId}`, `/paymentRequests/{requestId}`, `/budgets/{budgetId}`, `/leaveRequests/{requestId}`: Top-level collections for various data entities.
- * - `/userPermissions/{userId}`: Stores user-specific permissions. Access is restricted to the owning user.
- * - `/produksi/{produksiId}`, `/geologi/{geologiId}`, `/pengolahan/{pengolahanId}`, `/k3l/{k3lId}`, `/keuangan/{keuanganId}`, `/sdm/{sdmId}`, `/it/{itId}`: Top-level collections for department data. Read-only access for all authenticated users.
+ * - /users/{userId}: Stores individual user profiles. Access is restricted to the
+ *   owning user.
+ * - /kpi/{kpiId}, /announcements/{announcementId}, /productionStatus/{statusId},
+ *   /paymentRequests/{requestId}, /budgets/{budgetId}, /leaveRequests/{requestId}:
+ *   Top-level collections for dashboard data, payment requests, budgets, and leave requests.
+ * - /userPermissions/{userId}: Stores user-specific permission sets.
+ * - /produksi/{produksiId}, /geologi/{geologiId}, /pengolahan/{pengolahanId},
+ *   /k3l/{k3lId}, /keuangan/{keuanganId}, /sdm/{sdmId}, /it/{itId}: Top-level
+ *   collections for department-specific data. These are publicly readable but not writable from the client.
  *
  * Key Security Decisions:
- * - User listing is disallowed.
- * - Department data collections (`produksi`, `geologi`, etc.) are read-only for all authenticated users.
- * - User profiles are strictly owned by the corresponding user.
+ * - User listing is explicitly denied to protect user privacy.
+ * - Department data is assumed to be managed via a backend admin interface and is
+ *   therefore not writable by end-users.
+ * - The default security posture for ambiguous relationships is strict owner-only
+ *   access.
+ *
+ * Denormalization for Authorization:
+ *  - The userPermissions collection is used for user-based access control lists,
+ *    avoiding complex queries or `get()` calls in the rules.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -27,33 +42,31 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the authenticated user's UID matches the provided userId.
+     * @description Checks if the authenticated user's ID matches the provided user ID.
      */
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if the authenticated user is the owner of an existing document.
+     * @description Checks if the authenticated user is the owner of the existing document.
      */
     function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+        return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Rules for user profiles.
+     * @description Enforces user-ownership for user profiles.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user123' can create their profile.
-     *   request.auth.uid == 'user123'
-     *   request.resource.data.uid == 'user123'
-     * @allow (get, update, delete) User with UID 'user123' can access/modify their profile.
-     *   request.auth.uid == 'user123'
-     * @deny (create) User with UID 'user456' cannot create a profile for 'user123'.
-     *   request.auth.uid == 'user456'
-     *   request.resource.data.uid == 'user123'
-     * @deny (get, update, delete) User with UID 'user456' cannot access/modify profile of 'user123'.
-     *   request.auth.uid == 'user456'
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) User with uid 'user123' can create their own profile.
+     * @allow (get) User with uid 'user123' can read their own profile.
+     * @allow (update) User with uid 'user123' can update their own profile.
+     * @allow (delete) User with uid 'user123' can delete their own profile.
+     * @deny (create) User with uid 'user123' cannot create a profile for 'user456'.
+     * @deny (get) User with uid 'user123' cannot read the profile of 'user456'.
+     * @deny (update) User with uid 'user123' cannot update the profile of 'user456'.
+     * @deny (delete) User with uid 'user123' cannot delete the profile of 'user456'.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -64,109 +77,89 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for KPI documents.
+     * @description Allows public read access to KPI documents, but restricts writes.
      * @path /kpi/{kpiId}
-     * @allow (get, list) Any authenticated user can read KPI data.
-     * @allow (create, update, delete) No one can create, update, or delete KPI data.
-     * @deny (create, update, delete) No one can create, update, or delete KPI data.
-     * @principle Restricts write access to KPI documents.
+     * @allow (get, list) Any user can read KPI data.
+     * @deny (create, update, delete) No user can create, update, or delete KPI data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /kpi/{kpiId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for announcement documents.
+     * @description Allows public read access to announcement documents, but restricts writes.
      * @path /announcements/{announcementId}
-     * @allow (get, list) Any authenticated user can read announcement data.
-     * @allow (create, update, delete) No one can create, update, or delete announcement data.
-     * @deny (create, update, delete) No one can create, update, or delete announcement data.
-     * @principle Restricts write access to announcement documents.
+     * @allow (get, list) Any user can read announcement data.
+     * @deny (create, update, delete) No user can create, update, or delete announcement data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /announcements/{announcementId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for production status documents.
+     * @description Allows public read access to production status documents, but restricts writes.
      * @path /productionStatus/{statusId}
-     * @allow (get, list) Any authenticated user can read production status data.
-     * @allow (create, update, delete) No one can create, update, or delete production status data.
-     * @deny (create, update, delete) No one can create, update, or delete production status data.
-     * @principle Restricts write access to production status documents.
+     * @allow (get, list) Any user can read production status data.
+     * @deny (create, update, delete) No user can create, update, or delete production status data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /productionStatus/{statusId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for payment request documents.
+     * @description Allows public read access to payment request documents, but restricts writes.
      * @path /paymentRequests/{requestId}
-     * @allow (get, list) Any authenticated user can read payment request data.
-     * @allow (create, update, delete) No one can create, update, or delete payment request data.
-     * @deny (create, update, delete) No one can create, update, or delete payment request data.
-     * @principle Restricts write access to payment request documents.
+     * @allow (get, list) Any user can read payment request data.
+     * @deny (create, update, delete) No user can create, update, or delete payment request data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /paymentRequests/{requestId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for budget documents.
+     * @description Allows public read access to budget documents, but restricts writes.
      * @path /budgets/{budgetId}
-     * @allow (get, list) Any authenticated user can read budget data.
-     * @allow (create, update, delete) No one can create, update, or delete budget data.
-     * @deny (create, update, delete) No one can create, update, or delete budget data.
-     * @principle Restricts write access to budget documents.
+     * @allow (get, list) Any user can read budget data.
+     * @deny (create, update, delete) No user can create, update, or delete budget data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /budgets/{budgetId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for leave request documents.
+     * @description Allows public read access to leave request documents, but restricts writes.
      * @path /leaveRequests/{requestId}
-     * @allow (get, list) Any authenticated user can read leave request data.
-     * @allow (create, update, delete) No one can create, update, or delete leave request data.
-     * @deny (create, update, delete) No one can create, update, or delete leave request data.
-     * @principle Restricts write access to leave request documents.
+     * @allow (get, list) Any user can read leave request data.
+     * @deny (create, update, delete) No user can create, update, or delete leave request data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /leaveRequests/{requestId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
-     /**
-     * @description Rules for user permissions.
+    /**
+     * @description Enforces user-ownership for userPermissions documents.
      * @path /userPermissions/{userId}
-     * @allow (create) User with UID 'user123' can create their permission document.
-     *   request.auth.uid == 'user123'
-     *   request.resource.data.userId == 'user123'
-     * @allow (get, update, delete) User with UID 'user123' can access/modify their permission document.
-     *   request.auth.uid == 'user123'
-     * @deny (create) User with UID 'user456' cannot create a permission document for 'user123'.
-     *   request.auth.uid == 'user456'
-     *   request.resource.data.userId == 'user123'
-     * @deny (get, update, delete) User with UID 'user456' cannot access/modify permission document of 'user123'.
-     *   request.auth.uid == 'user456'
-     * @principle Enforces document ownership for user permissions.
+     * @allow (create) User with uid 'user123' can create their own permissions.
+     * @allow (get) User with uid 'user123' can read their own permissions.
+     * @allow (update) User with uid 'user123' can update their own permissions.
+     * @allow (delete) User with uid 'user123' can delete their own permissions.
+     * @deny (create) User with uid 'user123' cannot create permissions for 'user456'.
+     * @deny (get) User with uid 'user123' cannot read the permissions of 'user456'.
+     * @deny (update) User with uid 'user123' cannot update the permissions of 'user456'.
+     * @deny (delete) User with uid 'user123' cannot delete the permissions of 'user456'.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
      */
     match /userPermissions/{userId} {
       allow get: if isOwner(userId);
@@ -177,108 +170,87 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for produksi department data.
+     * @description Allows public read access to produksi documents, but restricts writes.
      * @path /produksi/{produksiId}
-     * @allow (get, list) Any authenticated user can read produksi data.
-     * @allow (create, update, delete) No one can create, update, or delete produksi data.
-     * @deny (create, update, delete) No one can create, update, or delete produksi data.
-     * @principle Restricts write access to produksi documents.
+     * @allow (get, list) Any user can read produksi data.
+     * @deny (create, update, delete) No user can create, update, or delete produksi data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /produksi/{produksiId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for geologi department data.
+     * @description Allows public read access to geologi documents, but restricts writes.
      * @path /geologi/{geologiId}
-     * @allow (get, list) Any authenticated user can read geologi data.
-     * @allow (create, update, delete) No one can create, update, or delete geologi data.
-     * @deny (create, update, delete) No one can create, update, or delete geologi data.
-     * @principle Restricts write access to geologi documents.
+     * @allow (get, list) Any user can read geologi data.
+     * @deny (create, update, delete) No user can create, update, or delete geologi data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /geologi/{geologiId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for pengolahan department data.
+     * @description Allows public read access to pengolahan documents, but restricts writes.
      * @path /pengolahan/{pengolahanId}
-     * @allow (get, list) Any authenticated user can read pengolahan data.
-     * @allow (create, update, delete) No one can create, update, or delete pengolahan data.
-     * @deny (create, update, delete) No one can create, update, or delete pengolahan data.
-     * @principle Restricts write access to pengolahan documents.
+     * @allow (get, list) Any user can read pengolahan data.
+     * @deny (create, update, delete) No user can create, update, or delete pengolahan data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /pengolahan/{pengolahanId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for K3L department data.
+     * @description Allows public read access to k3l documents, but restricts writes.
      * @path /k3l/{k3lId}
-     * @allow (get, list) Any authenticated user can read K3L data.
-     * @allow (create, update, delete) No one can create, update, or delete K3L data.
-     * @deny (create, update, delete) No one can create, update, or delete K3L data.
-     * @principle Restricts write access to K3L documents.
+     * @allow (get, list) Any user can read k3l data.
+     * @deny (create, update, delete) No user can create, update, or delete k3l data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /k3l/{k3lId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for keuangan department data.
+     * @description Allows public read access to keuangan documents, but restricts writes.
      * @path /keuangan/{keuanganId}
-     * @allow (get, list) Any authenticated user can read keuangan data.
-     * @allow (create, update, delete) No one can create, update, or delete keuangan data.
-     * @deny (create, update, delete) No one can create, update, or delete keuangan data.
-     * @principle Restricts write access to keuangan documents.
+     * @allow (get, list) Any user can read keuangan data.
+     * @deny (create, update, delete) No user can create, update, or delete keuangan data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /keuangan/{keuanganId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for SDM department data.
+     * @description Allows public read access to sdm documents, but restricts writes.
      * @path /sdm/{sdmId}
-     * @allow (get, list) Any authenticated user can read SDM data.
-     * @allow (create, update, delete) No one can create, update, or delete SDM data.
-     * @deny (create, update, delete) No one can create, update, or delete SDM data.
-     * @principle Restricts write access to SDM documents.
+     * @allow (get, list) Any user can read sdm data.
+     * @deny (create, update, delete) No user can create, update, or delete sdm data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /sdm/{sdmId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for IT department data.
+     * @description Allows public read access to it documents, but restricts writes.
      * @path /it/{itId}
-     * @allow (get, list) Any authenticated user can read IT data.
-     * @allow (create, update, delete) No one can create, update, or delete IT data.
-     * @deny (create, update, delete) No one can create, update, or delete IT data.
-     * @principle Restricts write access to IT documents.
+     * @allow (get, list) Any user can read it data.
+     * @deny (create, update, delete) No user can create, update, or delete it data.
+     * @principle Public read, owner-only writes (backend only).
      */
     match /it/{itId} {
-      allow get, list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
   }
 }
