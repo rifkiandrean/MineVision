@@ -60,7 +60,7 @@ const allPermissions = [
 ];
 
 const initialUserAccounts = [
-  { id: 'usr-001', email: 'rifkiandrean@gmail.com', role: 'Super Admin', isDefault: true },
+  { id: 'xpaeRpF1exOJbEwlTdLDh0LOBRl2', email: 'rifkiandrean@gmail.com', role: 'Super Admin', isDefault: true },
   { id: 'usr-002', email: 'manager.produksi@example.com', role: 'Manager' },
   { id: 'usr-003', email: 'staff.hr@example.com', role: 'Staff' },
 ];
@@ -79,7 +79,7 @@ export default function SettingsPage() {
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
   const [userAccounts, setUserAccounts] = useState(initialUserAccounts);
-  const [selectedAccount, setSelectedAccount] = useState<string>('usr-001');
+  const [selectedAccount, setSelectedAccount] = useState<string>('xpaeRpF1exOJbEwlTdLDh0LOBRl2');
 
   const permissionsDocRef = useMemoFirebase(() => {
     if (!firestore || !selectedAccount) return null;
@@ -95,7 +95,7 @@ export default function SettingsPage() {
   const [newUserRole, setNewUserRole] = useState('Staff');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  const isSuperAdmin = user?.email === 'rifkiandrean@gmail.com';
+  const isSuperAdmin = user?.uid === 'xpaeRpF1exOJbEwlTdLDh0LOBRl2';
   const selectedUserIsSuperAdmin = userAccounts.find(acc => acc.id === selectedAccount)?.role === 'Super Admin';
 
   useEffect(() => {
@@ -185,7 +185,7 @@ export default function SettingsPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) {
+    if (!auth || !firestore) {
         toast({
             variant: 'destructive',
             title: 'Error',
@@ -217,10 +217,8 @@ export default function SettingsPage() {
       setUserAccounts(prev => [...prev, newUser]);
       
       // Initialize permissions for the new user
-      if (firestore) {
-        const newUserPermsRef = doc(firestore, 'userPermissions', newUser.id);
-        await setDoc(newUserPermsRef, { userId: newUser.id, permissions: defaultPermissions });
-      }
+      const newUserPermsRef = doc(firestore, 'userPermissions', newUser.id);
+      await setDoc(newUserPermsRef, { userId: newUser.id, permissions: defaultPermissions });
 
       setNewUserEmail('');
       setNewUserPassword('');
@@ -384,25 +382,34 @@ export default function SettingsPage() {
                       </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 rounded-md border p-4">
-                    {allPermissions.map((permission) => (
-                      <div
-                        key={permission.id}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={`perm-${permission.id}`}
-                          checked={permissions[permission.id] || false}
-                          onCheckedChange={() => handlePermissionChange(permission.id)}
-                          disabled={selectedUserIsSuperAdmin || permissionsLoading}
-                        />
-                        <Label
-                          htmlFor={`perm-${permission.id}`}
-                          className={cn("font-normal", (selectedUserIsSuperAdmin || permissionsLoading) ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer")}
+                    {permissionsLoading ? (
+                      Array.from({ length: allPermissions.length }).map((_, i) => (
+                         <div key={i} className="flex items-center space-x-2">
+                           <Skeleton className="h-4 w-4" />
+                           <Skeleton className="h-4 w-48" />
+                         </div>
+                      ))
+                    ) : (
+                      allPermissions.map((permission) => (
+                        <div
+                          key={permission.id}
+                          className="flex items-center space-x-2"
                         >
-                          {permission.label}
-                        </Label>
-                      </div>
-                    ))}
+                          <Checkbox
+                            id={`perm-${permission.id}`}
+                            checked={permissions[permission.id] || false}
+                            onCheckedChange={() => handlePermissionChange(permission.id)}
+                            disabled={selectedUserIsSuperAdmin}
+                          />
+                          <Label
+                            htmlFor={`perm-${permission.id}`}
+                            className={cn("font-normal", selectedUserIsSuperAdmin ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer")}
+                          >
+                            {permission.label}
+                          </Label>
+                        </div>
+                      ))
+                    )}
                   </div>
                    {selectedUserIsSuperAdmin && (
                         <p className="text-sm text-accent-foreground rounded-md bg-accent p-2">
@@ -460,3 +467,5 @@ export default function SettingsPage() {
     </main>
   );
 }
+
+    
