@@ -57,7 +57,7 @@ const allPermissions = [
 ];
 
 // Mock user accounts for demonstration
-const userAccounts = [
+const initialUserAccounts = [
   { id: 'usr-001', email: 'rifkiandrean@gmail.com', role: 'Super Admin' },
   { id: 'usr-002', email: 'manager.produksi@example.com', role: 'Manager' },
   { id: 'usr-003', email: 'staff.hr@example.com', role: 'Staff' },
@@ -69,6 +69,7 @@ export default function SettingsPage() {
 
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
+  const [userAccounts, setUserAccounts] = useState(initialUserAccounts);
   const [selectedAccount, setSelectedAccount] = useState<string>('usr-001');
   const [permissions, setPermissions] = useState(() => {
     const initialPermissions: { [key: string]: boolean } = {};
@@ -137,11 +138,19 @@ export default function SettingsPage() {
     }
     setIsCreatingUser(true);
     try {
-      await createUserWithEmailAndPassword(auth, newUserEmail, newUserPassword);
+      const userCredential = await createUserWithEmailAndPassword(auth, newUserEmail, newUserPassword);
       toast({
         title: 'Akun Dibuat',
         description: `Akun untuk ${newUserEmail} berhasil dibuat.`,
       });
+      // Add the new user to the local state to update the dropdown
+      const newUser = {
+        id: userCredential.user.uid,
+        email: newUserEmail,
+        role: newUserRole
+      };
+      setUserAccounts(prev => [...prev, newUser]);
+      
       // Here you would also typically set the custom claim for the role in a backend function
       setNewUserEmail('');
       setNewUserPassword('');
@@ -361,3 +370,5 @@ export default function SettingsPage() {
     </main>
   );
 }
+
+    
