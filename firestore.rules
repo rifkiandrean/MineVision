@@ -3,187 +3,268 @@
  *
  * Core Philosophy:
  * This ruleset implements a hybrid security model. User data is strictly controlled
- * by ownership. Most departmental data is publicly readable, but only Rifki Andrean
- * has write access.
+ * with owner-only access. Department data collections are publicly readable,
+ * reflecting a read-only data access pattern. Administrative roles could be added in the future.
  *
  * Data Structure:
- * - /users/{userId}: Stores individual user profiles. Access is restricted to the
- *   owning user.
- * - /kpi/{kpiId}: Publicly readable data for key performance indicators.
- * - /announcements/{announcementId}: Publicly readable data for announcements.
- * - /productionStatus/{statusId}: Publicly readable data for production statuses.
- * - /paymentRequests/{requestId}: Publicly readable data for payment requests.
- * - /budgets/{budgetId}: Publicly readable data for budget information.
- * - /leaveRequests/{requestId}: Publicly readable data for leave requests.
- * - /userPermissions/{userId}: Stores application permissions for a specific user. Access is restricted to the owning user.
- * - /produksi/{produksiId}: Publicly readable data for produksi department.
- * - /geologi/{geologiId}: Publicly readable data for geologi department.
- * - /pengolahan/{pengolahanId}: Publicly readable data for pengolahan department.
- * - /k3l/{k3lId}: Publicly readable data for K3L department.
- * - /keuangan/{keuanganId}: Publicly readable data for keuangan department.
- * - /sdm/{sdmId}: Publicly readable data for SDM department.
- * - /it/{itId}: Publicly readable data for IT department.
+ * - /users/{userId}: Stores individual user profiles, accessible only by the user themselves.
+ * - /kpi/{kpiId}: Stores Key Performance Indicators. Publicly readable.
+ * - /announcements/{announcementId}: Stores announcements. Publicly readable.
+ * - /productionStatus/{statusId}: Stores production statuses. Publicly readable.
+ * - /paymentRequests/{requestId}: Stores payment requests. No specific authorization implemented.
+ * - /budgets/{budgetId}: Stores budget data. No specific authorization implemented.
+ * - /leaveRequests/{requestId}: Stores leave requests. No specific authorization implemented.
+ * - /userPermissions/{userId}: Stores user permissions. Accessible only by the user themselves.
+ * - /produksi/{produksiId}: Stores produksi data. Publicly readable.
+ * - /geologi/{geologiId}: Stores geologi data. Publicly readable.
+ * - /pengolahan/{pengolahanId}: Stores pengolahan data. Publicly readable.
+ * - /k3l/{k3lId}: Stores K3L data. Publicly readable.
+ * - /keuangan/{keuanganId}: Stores keuangan data. Publicly readable.
+ * - /sdm/{sdmId}: Stores SDM data. Publicly readable.
+ * - /it/{itId}: Stores IT data. Publicly readable.
  *
  * Key Security Decisions:
- * - User listing is explicitly denied.
- * - Default read access is public for department collections.
- * - All write operations are restricted to rifkiandrean@gmail.com, unless explicitly stated otherwise.
+ * - User listing is disallowed for privacy.
+ * - Department data is publicly readable to simplify the initial data access pattern.
+ * - For /paymentRequests, /budgets, and /leaveRequests, more specific rules are needed depending on the workflow.
+ * - All potentially mutable collections should be audited.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * @description Checks if the request is authenticated.
+     */
     function isSignedIn() {
       return request.auth != null;
     }
 
+    /**
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     */
     function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isRifkiAndrean() {
-        return request.auth.token.email == 'rifkiandrean@gmail.com';
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Controls access to user profile data.
+     * @description Checks if the authenticated user is the owner of an existing document.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+    /**
+     * @description Rules for user documents.
      * @path /users/{userId}
+     * @allow (create) User with UID matching {userId} can create their own document.
+     * @allow (get, update, delete) User with UID matching {userId} can access/modify their own document.
+     * @deny (create) User with UID not matching {userId} cannot create a document.
+     * @deny (get, update, delete) User with UID not matching {userId} cannot access/modify other user's document.
+     * @deny (list) Listing all users is not allowed.
+     * @principle Enforces document ownership for user data.
      */
     match /users/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
+      allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to KPI documents.
+     * @description Rules for KPI documents.
      * @path /kpi/{kpiId}
+     * @allow (get, list) Any user can read KPI data.
+     * @deny (create, update, delete) No user can create, update, or delete KPI data.
+     * @principle Public read access, no write access.
      */
     match /kpi/{kpiId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to announcement documents.
+     * @description Rules for Announcement documents.
      * @path /announcements/{announcementId}
+     * @allow (get, list) Any user can read announcement data.
+     * @deny (create, update, delete) No user can create, update, or delete announcement data.
+     * @principle Public read access, no write access.
      */
     match /announcements/{announcementId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to production status documents.
+     * @description Rules for ProductionStatus documents.
      * @path /productionStatus/{statusId}
+     * @allow (get, list) Any user can read production status data.
+     * @deny (create, update, delete) No user can create, update, or delete production status data.
+     * @principle Public read access, no write access.
      */
     match /productionStatus/{statusId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to payment request documents.
+     * @description Rules for PaymentRequest documents.
      * @path /paymentRequests/{requestId}
+     * @allow (get, list) Any user can read payment request data.
+     * @deny (create, update, delete) No user can create, update, or delete payment request data.
      */
     match /paymentRequests/{requestId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false; // TODO: Add create validation
+      allow update: if false; // TODO: Add update validation
+      allow delete: if false; // TODO: Add delete validation
     }
 
     /**
-     * @description Controls access to budget documents.
+     * @description Rules for Budget documents.
      * @path /budgets/{budgetId}
+     * @allow (get, list) Any user can read budget data.
+     * @deny (create, update, delete) No user can create, update, or delete budget data.
      */
     match /budgets/{budgetId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false; // TODO: Add create validation
+      allow update: if false; // TODO: Add update validation
+      allow delete: if false; // TODO: Add delete validation
     }
 
     /**
-     * @description Controls access to leave request documents.
+     * @description Rules for LeaveRequest documents.
      * @path /leaveRequests/{requestId}
+     * @allow (get, list) Any user can read leave request data.
+     * @deny (create, update, delete) No user can create, update, or delete leave request data.
      */
     match /leaveRequests/{requestId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false; // TODO: Add create validation
+      allow update: if false; // TODO: Add update validation
+      allow delete: if false; // TODO: Add delete validation
     }
 
-    /**
-     * @description Controls access to user permissions documents.
+        /**
+     * @description Rules for userPermissions documents.
      * @path /userPermissions/{userId}
+     * @allow (create) User with UID matching {userId} can create their own document.
+     * @allow (get, update, delete) User with UID matching {userId} can access/modify their own document.
+     * @deny (create) User with UID not matching {userId} cannot create a document.
+     * @deny (get, update, delete) User with UID not matching {userId} cannot access/modify other user's document.
+     * @deny (list) Listing all users is not allowed.
      */
     match /userPermissions/{userId} {
-        allow get: if isSignedIn() && isOwner(userId);
-        allow list: if false;
-        allow create: if isSignedIn() && isOwner(userId);
-        allow update: if isSignedIn() && isOwner(userId);
-        allow delete: if isSignedIn() && isOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to produksi documents.
+     * @description Rules for Produksi documents.
      * @path /produksi/{produksiId}
+     * @allow (get, list) Any user can read produksi data.
+     * @deny (create, update, delete) No user can create, update, or delete produksi data.
+     * @principle Public read access, no write access.
      */
     match /produksi/{produksiId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to geologi documents.
+     * @description Rules for Geologi documents.
      * @path /geologi/{geologiId}
+     * @allow (get, list) Any user can read geologi data.
+     * @deny (create, update, delete) No user can create, update, or delete geologi data.
+     * @principle Public read access, no write access.
      */
     match /geologi/{geologiId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to pengolahan documents.
+     * @description Rules for Pengolahan documents.
      * @path /pengolahan/{pengolahanId}
+     * @allow (get, list) Any user can read pengolahan data.
+     * @deny (create, update, delete) No user can create, update, or delete pengolahan data.
+     * @principle Public read access, no write access.
      */
     match /pengolahan/{pengolahanId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to k3l documents.
+     * @description Rules for K3L documents.
      * @path /k3l/{k3lId}
+     * @allow (get, list) Any user can read K3L data.
+     * @deny (create, update, delete) No user can create, update, or delete K3L data.
+     * @principle Public read access, no write access.
      */
     match /k3l/{k3lId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to keuangan documents.
+     * @description Rules for Keuangan documents.
      * @path /keuangan/{keuanganId}
+     * @allow (get, list) Any user can read keuangan data.
+     * @deny (create, update, delete) No user can create, update, or delete keuangan data.
+     * @principle Public read access, no write access.
      */
     match /keuangan/{keuanganId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to sdm documents.
+     * @description Rules for SDM documents.
      * @path /sdm/{sdmId}
+     * @allow (get, list) Any user can read SDM data.
+     * @deny (create, update, delete) No user can create, update, or delete SDM data.
+     * @principle Public read access, no write access.
      */
     match /sdm/{sdmId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to it documents.
+     * @description Rules for IT documents.
      * @path /it/{itId}
+     * @allow (get, list) Any user can read IT data.
+     * @deny (create, update, delete) No user can create, update, or delete IT data.
+     * @principle Public read access, no write access.
      */
     match /it/{itId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isRifkiAndrean();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
