@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { handleLeaveRequest } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,7 +48,7 @@ function SubmitButton() {
 
 export function LeaveRequestForm() {
   const { user } = useFirebase();
-  const [state, formAction] = useFormState(handleLeaveRequest, initialState);
+  const [state, formAction] = useActionState(handleLeaveRequest, initialState);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const { toast } = useToast();
