@@ -123,7 +123,7 @@ export default function SettingsPage() {
                 
                 // Set user data in Firestore
                 const userDocRef = doc(firestore, 'users', u.uid);
-                await setDoc(userDocRef, { uid: u.uid, email: u.email, department: u.department }, { merge: true });
+                setDocumentNonBlocking(userDocRef, { uid: u.uid, email: u.email, department: u.department }, { merge: true });
 
             } catch (error: any) {
                  if (error.code !== 'auth/email-already-in-use') {
@@ -505,6 +505,8 @@ export default function SettingsPage() {
     </main>
   );
     
+    
+
     
 
     
