@@ -234,15 +234,15 @@ export default function SettingsPage() {
 
       // Save user info to 'users' collection
       const userDocRef = doc(firestore, 'users', newUser.uid);
-      await setDoc(userDocRef, newUser);
+      setDocumentNonBlocking(userDocRef, newUser, {});
 
       // Initialize permissions for the new user
       const newUserPermsRef = doc(firestore, 'userPermissions', newUser.uid);
-      await setDoc(newUserPermsRef, { userId: newUser.uid, permissions: defaultPermissions });
+      setDocumentNonBlocking(newUserPermsRef, { userId: newUser.uid, permissions: defaultPermissions }, {});
 
       toast({
         title: 'Akun Dibuat',
-        description: `Akun untuk ${newUserEmail} berhasil dibuat dan disimpan di Firestore.`,
+        description: `Akun untuk ${newUserEmail} berhasil dibuat.`,
       });
 
       setNewUserEmail('');
@@ -250,6 +250,8 @@ export default function SettingsPage() {
       setNewUserDepartment('Staff');
 
     } catch (error: any) {
+      // This catch block handles Auth errors (like email-already-in-use)
+      // Firestore permission errors are handled by setDocumentNonBlocking
       toast({
         variant: 'destructive',
         title: 'Gagal Membuat Akun',
@@ -498,4 +500,4 @@ export default function SettingsPage() {
       )}
     </main>
   );
-}
+    
