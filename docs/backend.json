@@ -129,7 +129,7 @@
         },
         "lastUpdated": {
           "type": "string",
-          "description": "Timestamp of the last data update.",
+,"description": "Timestamp of the last data update.",
           "format": "date-time"
         }
       },
@@ -310,6 +310,37 @@
         "name": { "type": "string" },
         "status": { "type": "string", "enum": ["Optimal", "Warning", "Halted"] }
       }
+    },
+    "PaymentRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PaymentRequest",
+      "type": "object",
+      "description": "Represents a payment request requiring approval.",
+      "properties": {
+        "requestor": {
+          "type": "string",
+          "description": "The person or department making the request."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of money requested."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the payment reason."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date the request was submitted."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "The current status of the request."
+        }
+      },
+      "required": ["requestor", "amount", "description", "date", "status"]
     }
   },
   "auth": {
@@ -342,6 +373,14 @@
           "entityName": "ProductionStatus",
           "schema": { "$ref": "#/backend/entities/ProductionStatus" },
           "description": "Stores production status data for the main dashboard."
+        }
+      },
+      {
+        "path": "/paymentRequests/{requestId}",
+        "definition": {
+          "entityName": "PaymentRequest",
+          "schema": { "$ref": "#/backend/entities/PaymentRequest" },
+          "description": "Stores all payment approval requests."
         }
       },
       {
@@ -457,6 +496,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department."
   }
 }
