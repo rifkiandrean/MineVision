@@ -61,7 +61,7 @@ const allPermissions = [
 
 const initialUserAccounts = [
   { id: 'xpaeRpF1exOJbEwlTdLDh0LOBRl2', email: 'rifkiandrean@gmail.com', role: 'Super Admin', isDefault: true },
-  { id: 'usr-002', email: 'manager.produksi@example.com', role: 'Manager' },
+  { id: '8zoyGpdLOiaFyhL17sQWYqvFWz12', email: 'thoriq@gmail.com', role: 'Manager' },
   { id: 'usr-003', email: 'staff.hr@example.com', role: 'Staff' },
 ];
 
@@ -467,5 +467,3 @@ export default function SettingsPage() {
     </main>
   );
 }
-
-    
