@@ -30,8 +30,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirebase, useDoc, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 const initialMenuItems = [
@@ -56,29 +57,36 @@ const allPermissions = [
   { id: 'sdm_approval', label: 'Izin Menyetujui Cuti (SDM)' },
 ];
 
-// Mock user accounts for demonstration
 const initialUserAccounts = [
   { id: 'usr-001', email: 'rifkiandrean@gmail.com', role: 'Super Admin' },
   { id: 'usr-002', email: 'manager.produksi@example.com', role: 'Manager' },
   { id: 'usr-003', email: 'staff.hr@example.com', role: 'Staff' },
 ];
 
+const defaultPermissions: { [key: string]: boolean } = {};
+allPermissions.forEach((p) => {
+    defaultPermissions[p.id] = false;
+});
+
+
 export default function SettingsPage() {
-  const auth = useAuth();
+  const { auth, user, firestore } = useFirebase();
   const { toast } = useToast();
 
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
   const [userAccounts, setUserAccounts] = useState(initialUserAccounts);
   const [selectedAccount, setSelectedAccount] = useState<string>('usr-001');
-  const [permissions, setPermissions] = useState(() => {
-    const initialPermissions: { [key: string]: boolean } = {};
-    allPermissions.forEach((p) => {
-      initialPermissions[p.id] = true; // Default to all checked for Admin role
-    });
-    return initialPermissions;
-  });
 
+  const permissionsDocRef = useMemoFirebase(() => {
+    if (!firestore || !selectedAccount) return null;
+    return doc(firestore, 'userPermissions', selectedAccount);
+  }, [firestore, selectedAccount]);
+
+  const { data: savedPermissions, isLoading: permissionsLoading } = useDoc<{ permissions: { [key: string]: boolean } }>(permissionsDocRef);
+
+  const [permissions, setPermissions] = useState(defaultPermissions);
+  
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('Staff');
@@ -94,10 +102,12 @@ export default function SettingsPage() {
             allTruePermissions[p.id] = true;
         });
         setPermissions(allTruePermissions);
+    } else if (savedPermissions) {
+        setPermissions(savedPermissions.permissions);
+    } else if (!permissionsLoading) {
+        setPermissions(defaultPermissions);
     }
-    // For other accounts, you might want to load their specific permissions here.
-    // For now, we'll just let them be editable.
-  }, [selectedAccount, isSuperAdmin]);
+  }, [selectedAccount, isSuperAdmin, savedPermissions, permissionsLoading]);
 
 
   const handleMenuItemChange = (id: number, field: 'name' | 'path', value: string) => {
@@ -126,6 +136,23 @@ export default function SettingsPage() {
     }));
   };
 
+  const handleSavePermissions = async () => {
+    if (!firestore || !selectedAccount || isSuperAdmin) return;
+    
+    const docRef = doc(firestore, 'userPermissions', selectedAccount);
+    const dataToSave = {
+        userId: selectedAccount,
+        permissions: permissions
+    };
+    
+    setDocumentNonBlocking(docRef, dataToSave, { merge: true });
+
+    toast({
+        title: 'Hak Akses Disimpan',
+        description: `Hak akses untuk ${userAccounts.find(acc => acc.id === selectedAccount)?.email} telah diperbarui.`,
+    });
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserEmail || !newUserPassword) {
@@ -143,7 +170,7 @@ export default function SettingsPage() {
         title: 'Akun Dibuat',
         description: `Akun untuk ${newUserEmail} berhasil dibuat.`,
       });
-      // Add the new user to the local state to update the dropdown
+      
       const newUser = {
         id: userCredential.user.uid,
         email: newUserEmail,
@@ -151,7 +178,12 @@ export default function SettingsPage() {
       };
       setUserAccounts(prev => [...prev, newUser]);
       
-      // Here you would also typically set the custom claim for the role in a backend function
+      // Initialize permissions for the new user
+      if (firestore) {
+        const newUserPermsRef = doc(firestore, 'userPermissions', newUser.id);
+        await setDoc(newUserPermsRef, { userId: newUser.id, permissions: defaultPermissions });
+      }
+
       setNewUserEmail('');
       setNewUserPassword('');
       setNewUserRole('Staff');
@@ -301,13 +333,13 @@ export default function SettingsPage() {
                       >
                         <Checkbox
                           id={`perm-${permission.id}`}
-                          checked={permissions[permission.id]}
+                          checked={permissions[permission.id] || false}
                           onCheckedChange={() => handlePermissionChange(permission.id)}
-                          disabled={isSuperAdmin}
+                          disabled={isSuperAdmin || permissionsLoading}
                         />
                         <Label
                           htmlFor={`perm-${permission.id}`}
-                          className={cn("font-normal", isSuperAdmin ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer")}
+                          className={cn("font-normal", (isSuperAdmin || permissionsLoading) ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer")}
                         >
                           {permission.label}
                         </Label>
@@ -320,7 +352,7 @@ export default function SettingsPage() {
                         </p>
                     )}
                   <div className="flex justify-end pt-4">
-                    <Button className="bg-primary" disabled={isSuperAdmin}>Simpan Perubahan Hak Akses</Button>
+                    <Button className="bg-primary" onClick={handleSavePermissions} disabled={isSuperAdmin}>Simpan Perubahan Hak Akses</Button>
                   </div>
                 </div>
               </AccordionContent>
@@ -328,7 +360,7 @@ export default function SettingsPage() {
           </Accordion>
         </CardContent>
       </Card>
-      {auth.currentUser?.email === 'rifkiandrean@gmail.com' && (
+      {user?.email === 'rifkiandrean@gmail.com' && (
         <Card className="mt-8">
             <CardHeader>
                 <CardTitle>Tambah Akun Baru</CardTitle>
@@ -370,5 +402,3 @@ export default function SettingsPage() {
     </main>
   );
 }
-
-    
