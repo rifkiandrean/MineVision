@@ -20,7 +20,12 @@ import { Check, X, Printer } from 'lucide-react';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
 
-export function LeaveApprovalTable() {
+interface LeaveApprovalTableProps {
+  onPrint: (request: LeaveRequest) => void;
+}
+
+
+export function LeaveApprovalTable({ onPrint }: LeaveApprovalTableProps) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
 
@@ -43,10 +48,6 @@ export function LeaveApprovalTable() {
         description: `Request has been ${status}.`
     })
   };
-
-  const handlePrint = () => {
-    window.print();
-  }
 
   const statusColors: { [key: string]: string } = {
     pending: 'bg-yellow-500/80 text-yellow-foreground',
@@ -143,7 +144,8 @@ export function LeaveApprovalTable() {
                         variant="outline"
                         size="icon"
                         className="h-8 w-8 text-primary hover:bg-primary/10 border-primary/30"
-                        onClick={handlePrint}
+                        onClick={() => onPrint(req)}
+                        disabled={req.status !== 'approved'}
                       >
                         <Printer className="h-4 w-4" />
                       </Button>
