@@ -72,7 +72,12 @@ export default function SettingsPage() {
     return initialPermissions;
   });
 
-  const isSuperAdmin = userAccounts.find(acc => acc.id === selectedAccount)?.email === 'rifkiandrean@gmail.com';
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState('Staff');
+
+
+  const isSuperAdmin = userAccounts.find(acc => acc.id === selectedAccount)?.role === 'Super Admin';
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -275,6 +280,43 @@ export default function SettingsPage() {
           </Accordion>
         </CardContent>
       </Card>
+      {userAccounts.find(acc => acc.id === selectedAccount)?.role === 'Super Admin' && (
+        <Card className="mt-8">
+            <CardHeader>
+                <CardTitle>Tambah Akun Baru</CardTitle>
+                <CardDescription>Hanya Super Admin yang dapat menambahkan akun baru.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="new-email">Email Pengguna</Label>
+                            <Input id="new-email" type="email" placeholder="email@example.com" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="new-password">Password Sementara</Label>
+                            <Input id="new-password" type="password" placeholder="********" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
+                        </div>
+                    </div>
+                     <div className="space-y-2 max-w-sm">
+                        <Label htmlFor="new-role">Peran</Label>
+                        <Select value={newUserRole} onValueChange={setNewUserRole}>
+                            <SelectTrigger id="new-role">
+                                <SelectValue placeholder="Pilih peran" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Manager">Manager</SelectItem>
+                                <SelectItem value="Staff">Staff</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="flex justify-end pt-4">
+                        <Button className="bg-primary">Tambah Akun</Button>
+                    </div>
+                </form>
+            </CardContent>
+        </Card>
+      )}
     </main>
   );
 }
