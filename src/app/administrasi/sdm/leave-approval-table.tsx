@@ -50,6 +50,14 @@ export function LeaveApprovalTable() {
     rejected: 'bg-red-500/80 text-red-foreground',
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  };
+
   return (
     <div className="w-full">
       <Table>
@@ -90,8 +98,7 @@ export function LeaveApprovalTable() {
                 <TableRow key={req.id}>
                   <TableCell className="font-medium">{req.employeeName}</TableCell>
                   <TableCell>
-                    {new Date(req.startDate).toLocaleDateString()} -{' '}
-                    {new Date(req.endDate).toLocaleDateString()}
+                    {formatDate(req.startDate)} - {formatDate(req.endDate)}
                   </TableCell>
                   <TableCell>{req.reason}</TableCell>
                   <TableCell className="text-center">
