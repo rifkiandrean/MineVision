@@ -34,6 +34,22 @@ export default function SettingsPage() {
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
 
+  const handleMenuItemChange = (id: number, field: 'name' | 'path', value: string) => {
+    setMenuItems(menuItems.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  };
+
+  const addMenuItem = () => {
+    const newId = menuItems.length > 0 ? Math.max(...menuItems.map(item => item.id)) + 1 : 1;
+    setMenuItems([...menuItems, { id: newId, name: 'New Menu', path: '/new-path' }]);
+  };
+
+  const removeMenuItem = (id: number) => {
+    setMenuItems(menuItems.filter(item => item.id !== id));
+  };
+
+
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
       <PageHeader title="Pengaturan" />
@@ -83,15 +99,23 @@ export default function SettingsPage() {
                         <div className="space-y-3">
                             {menuItems.map(item => (
                                 <div key={item.id} className="flex items-center gap-2 p-2 rounded-md border">
-                                    <Input value={item.name} className="h-9"/>
-                                    <Input value={item.path} className="h-9"/>
-                                    <Button variant="ghost" size="icon" className="text-destructive h-9 w-9">
+                                    <Input 
+                                      value={item.name} 
+                                      onChange={(e) => handleMenuItemChange(item.id, 'name', e.target.value)}
+                                      className="h-9"
+                                    />
+                                    <Input 
+                                      value={item.path} 
+                                      onChange={(e) => handleMenuItemChange(item.id, 'path', e.target.value)}
+                                      className="h-9"
+                                    />
+                                    <Button variant="ghost" size="icon" className="text-destructive h-9 w-9" onClick={() => removeMenuItem(item.id)}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             ))}
                         </div>
-                         <Button variant="outline">
+                         <Button variant="outline" onClick={addMenuItem}>
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Tambah Menu Halaman
                         </Button>
