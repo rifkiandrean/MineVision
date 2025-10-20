@@ -76,7 +76,7 @@ export default function SidebarNav() {
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <Link href={item.href} passHref>
+              <Link href={item.href} passHref legacyBehavior>
                 <SidebarMenuButton
                   as="a"
                   isActive={pathname === item.href}
@@ -109,7 +109,7 @@ export default function SidebarNav() {
             <CollapsibleContent className="pl-4">
               {adminNavItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
-                  <Link href={item.href} passHref>
+                  <Link href={item.href} passHref legacyBehavior>
                     <SidebarMenuButton
                       as="a"
                       isActive={pathname === item.href}
