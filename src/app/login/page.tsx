@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pickaxe } from 'lucide-react';
-import { useAuth } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,11 +22,18 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const auth = useAuth();
+  const { auth, user, isUserLoading } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.push('/');
+    }
+  }, [user, isUserLoading, router]);
+
   const handleSignIn = async () => {
+    if (!auth) return;
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -48,9 +55,17 @@ export default function LoginPage() {
   };
 
   const handleLogout = () => {
-    auth.signOut();
+    auth?.signOut();
     router.push('/login');
   };
+
+  if (isUserLoading || (!isUserLoading && user)) {
+     return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Pickaxe className="w-12 h-12 text-primary animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">

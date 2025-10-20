@@ -24,26 +24,26 @@ import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
-  const { firestore } = useFirebase();
+  const { firestore, isUserLoading } = useFirebase();
 
   const kpiQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(collection(firestore, 'kpi'), limit(4));
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const announcementsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return query(
       collection(firestore, 'announcements'),
       orderBy('date', 'desc'),
       limit(3)
     );
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const productionStatusQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading) return null;
     return collection(firestore, 'productionStatus');
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: kpiData, isLoading: kpiLoading } = useCollection<any>(kpiQuery);
   const { data: announcements, isLoading: announcementsLoading } =
