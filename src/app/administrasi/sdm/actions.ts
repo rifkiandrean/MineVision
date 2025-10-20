@@ -1,8 +1,7 @@
 
 'use server';
 
-import { addDocumentNonBlocking } from '@/firebase';
-import { collection, getFirestore } from 'firebase/firestore';
+import { addDoc, collection, getFirestore } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
@@ -46,7 +45,8 @@ export async function handleLeaveRequest(prevState: any, formData: FormData) {
       status: 'pending',
     };
 
-    await addDocumentNonBlocking(leaveRequestsCollection, newRequest);
+    // Use addDoc directly from the firestore sdk on the server
+    await addDoc(leaveRequestsCollection, newRequest);
     
     revalidatePath('/administrasi/sdm');
 
