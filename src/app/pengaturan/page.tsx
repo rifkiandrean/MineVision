@@ -31,9 +31,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useFirebase, useDoc, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, setDocumentNonBlocking, useCollection } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -59,12 +59,6 @@ const allPermissions = [
   { id: 'sdm_approval', label: 'Izin Menyetujui Cuti (SDM)' },
 ];
 
-const initialUserAccounts = [
-  { id: 'xpaeRpF1exOJbEwlTdLDh0LOBRl2', email: 'rifkiandrean@gmail.com', role: 'Super Admin', isDefault: true },
-  { id: '8zoyGpdLOiaFyhL17sQWYqvFWz12', email: 'thoriq@gmail.com', role: 'Manager' },
-  { id: 'usr-003', email: 'staff.hr@example.com', role: 'Staff' },
-];
-
 const defaultPermissions: { [key: string]: boolean } = {};
 allPermissions.forEach((p) => {
     defaultPermissions[p.id] = false;
@@ -78,7 +72,14 @@ export default function SettingsPage() {
 
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
-  const [userAccounts, setUserAccounts] = useState(initialUserAccounts);
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'users');
+  }, [firestore]);
+  
+  const { data: userAccounts, isLoading: usersLoading } = useCollection<{email: string; department: string}>(usersQuery);
+
   const [selectedAccount, setSelectedAccount] = useState<string>('xpaeRpF1exOJbEwlTdLDh0LOBRl2');
 
   const permissionsDocRef = useMemoFirebase(() => {
@@ -92,30 +93,50 @@ export default function SettingsPage() {
   
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [newUserRole, setNewUserRole] = useState('Staff');
+  const [newUserDepartment, setNewUserDepartment] = useState('Staff');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   const isSuperAdmin = user?.uid === 'xpaeRpF1exOJbEwlTdLDh0LOBRl2';
-  const selectedUserIsSuperAdmin = userAccounts.find(acc => acc.id === selectedAccount)?.role === 'Super Admin';
+  const selectedUser = userAccounts?.find(acc => acc.id === selectedAccount);
+  const selectedUserIsSuperAdmin = selectedUser?.department === 'Super Admin';
 
   useEffect(() => {
-    async function createDefaultUser(email: string, pass: string) {
-      if (!auth) return;
-      try {
-        await createUserWithEmailAndPassword(auth, email, pass);
-        toast({ title: 'Akun Demo Dibuat', description: `Akun untuk ${email} telah dibuat dengan password 'password123'.` });
-      } catch (error: any) {
-        if (error.code !== 'auth/email-already-in-use') {
-          console.error(`Failed to create default user ${email}:`, error);
+    async function createDefaultUsers() {
+        if (!auth || !firestore) return;
+        
+        const usersToCreate = [
+            { email: 'rifkiandrean@gmail.com', pass: 'password123', uid: 'xpaeRpF1exOJbEwlTdLDh0LOBRl2', department: 'Super Admin' },
+            { email: 'thoriq@gmail.com', pass: 'password123', uid: '8zoyGpdLOiaFyhL17sQWYqvFWz12', department: 'Manager' },
+        ];
+
+        for (const u of usersToCreate) {
+             try {
+                // Check if user exists in Auth
+                try {
+                    await createUserWithEmailAndPassword(auth, u.email, u.pass);
+                     toast({ title: 'Akun Demo Dibuat', description: `Akun untuk ${u.email} telah dibuat.` });
+                } catch (error: any) {
+                    if (error.code !== 'auth/email-already-in-use') {
+                        throw error;
+                    }
+                }
+                
+                // Set user data in Firestore
+                const userDocRef = doc(firestore, 'users', u.uid);
+                await setDoc(userDocRef, { uid: u.uid, email: u.email, department: u.department }, { merge: true });
+
+            } catch (error: any) {
+                 if (error.code !== 'auth/email-already-in-use') {
+                    console.error(`Gagal membuat pengguna demo ${u.email}:`, error);
+                }
+            }
         }
-      }
     }
 
     if (isSuperAdmin) {
-      createDefaultUser('rifkiandrean@gmail.com', 'password123');
-      createDefaultUser('thoriq@gmail.com', 'password123');
+      createDefaultUsers();
     }
-  }, [auth, isSuperAdmin, toast]);
+  }, [auth, isSuperAdmin, toast, firestore]);
 
 
   useEffect(() => {
@@ -179,7 +200,7 @@ export default function SettingsPage() {
 
     toast({
         title: 'Hak Akses Disimpan',
-        description: `Hak akses untuk ${userAccounts.find(acc => acc.id === selectedAccount)?.email} telah diperbarui.`,
+        description: `Hak akses untuk ${selectedUser?.email} telah diperbarui.`,
     });
   };
 
@@ -204,25 +225,30 @@ export default function SettingsPage() {
     setIsCreatingUser(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, newUserEmail, newUserPassword);
-      toast({
-        title: 'Akun Dibuat',
-        description: `Akun untuk ${newUserEmail} berhasil dibuat.`,
-      });
       
       const newUser = {
-        id: userCredential.user.uid,
+        uid: userCredential.user.uid,
         email: newUserEmail,
-        role: newUserRole
+        department: newUserDepartment
       };
-      setUserAccounts(prev => [...prev, newUser]);
-      
+
+      // Save user info to 'users' collection
+      const userDocRef = doc(firestore, 'users', newUser.uid);
+      await setDoc(userDocRef, newUser);
+
       // Initialize permissions for the new user
-      const newUserPermsRef = doc(firestore, 'userPermissions', newUser.id);
-      await setDoc(newUserPermsRef, { userId: newUser.id, permissions: defaultPermissions });
+      const newUserPermsRef = doc(firestore, 'userPermissions', newUser.uid);
+      await setDoc(newUserPermsRef, { userId: newUser.uid, permissions: defaultPermissions });
+
+      toast({
+        title: 'Akun Dibuat',
+        description: `Akun untuk ${newUserEmail} berhasil dibuat dan disimpan di Firestore.`,
+      });
 
       setNewUserEmail('');
       setNewUserPassword('');
-      setNewUserRole('Staff');
+      setNewUserDepartment('Staff');
+
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -357,15 +383,19 @@ export default function SettingsPage() {
                   <div className="space-y-2 max-w-sm">
                      <Label htmlFor="account-select">Pilih Akun</Label>
                       <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                        <SelectTrigger id="account-select">
+                        <SelectTrigger id="account-select" disabled={usersLoading}>
                           <SelectValue placeholder="Pilih akun untuk dikonfigurasi" />
                         </SelectTrigger>
                         <SelectContent>
-                          {userAccounts.map(account => (
-                             <SelectItem key={account.id} value={account.id}>
-                               {account.email} ({account.role})
-                             </SelectItem>
-                          ))}
+                           {usersLoading ? (
+                             <SelectItem value="loading" disabled>Memuat akun...</SelectItem>
+                           ) : (
+                            userAccounts?.map(account => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.email} ({account.department})
+                              </SelectItem>
+                            ))
+                           )}
                         </SelectContent>
                       </Select>
                       <p className="text-sm text-muted-foreground">
@@ -378,7 +408,7 @@ export default function SettingsPage() {
                   <div>
                     <h4 className="font-medium">Izin Akses untuk Akun Terpilih</h4>
                      <p className="text-sm text-muted-foreground">
-                        Atur izin akses untuk <span className="font-semibold">{userAccounts.find(acc => acc.id === selectedAccount)?.email}</span>.
+                        Atur izin akses untuk <span className="font-semibold">{selectedUser?.email}</span>.
                       </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 rounded-md border p-4">
@@ -444,13 +474,15 @@ export default function SettingsPage() {
                         </div>
                     </div>
                      <div className="space-y-2 max-w-sm">
-                        <Label htmlFor="new-role">Peran</Label>
-                        <Select value={newUserRole} onValueChange={setNewUserRole}>
-                            <SelectTrigger id="new-role">
-                                <SelectValue placeholder="Pilih peran" />
+                        <Label htmlFor="new-department">Departemen</Label>
+                        <Select value={newUserDepartment} onValueChange={setNewUserDepartment}>
+                            <SelectTrigger id="new-department">
+                                <SelectValue placeholder="Pilih departemen" />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="Admin">Admin</SelectItem>
                                 <SelectItem value="Manager">Manager</SelectItem>
+                                <SelectItem value="Supervisor">Supervisor</SelectItem>
                                 <SelectItem value="Staff">Staff</SelectItem>
                             </SelectContent>
                         </Select>

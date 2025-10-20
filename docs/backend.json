@@ -1,6 +1,29 @@
 
 {
   "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user account in the system.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The unique identifier for the user, from Firebase Authentication."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "department": {
+          "type": "string",
+          "description": "The department or role of the user.",
+          "enum": ["Super Admin", "Admin", "Manager", "Supervisor", "Staff"]
+        }
+      },
+      "required": ["uid", "email", "department"]
+    },
     "MineVisionDashboard": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MineVisionDashboard",
@@ -430,6 +453,14 @@
   "firestore": {
     "structure": [
       {
+        "path": "/users/{userId}",
+        "definition": {
+            "entityName": "User",
+            "schema": { "$ref": "#/backend/entities/User" },
+            "description": "Stores user account information, including their role/department."
+        }
+      },
+      {
         "path": "/kpi/{kpiId}",
         "definition": {
           "entityName": "KPI",
@@ -598,6 +629,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `users` collection is added to store user account information."
   }
 }
