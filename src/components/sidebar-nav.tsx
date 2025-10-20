@@ -74,6 +74,8 @@ export default function SidebarNav() {
     router.push('/login');
   };
 
+  const isSuperAdmin = user?.email === 'rifkiandrean@gmail.com';
+
 
   return (
     <>
@@ -138,6 +140,7 @@ export default function SidebarNav() {
       <SidebarFooter>
         <SidebarSeparator />
         <SidebarMenu>
+          {isSuperAdmin && (
             <SidebarMenuItem>
                 <Link href="/pengaturan">
                     <SidebarMenuButton isActive={pathname === '/pengaturan'} className="w-full justify-start">
@@ -146,6 +149,7 @@ export default function SidebarNav() {
                     </SidebarMenuButton>
                 </Link>
             </SidebarMenuItem>
+          )}
         </SidebarMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

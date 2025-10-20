@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/page-header';
 import {
   Accordion,
@@ -30,10 +31,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useAuth, useFirebase, useDoc, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useDoc, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const initialMenuItems = [
   { id: 1, name: 'Dashboard', path: '/' },
@@ -70,8 +72,9 @@ allPermissions.forEach((p) => {
 
 
 export default function SettingsPage() {
-  const { auth, user, firestore } = useFirebase();
+  const { auth, user, firestore, isUserLoading } = useFirebase();
   const { toast } = useToast();
+  const router = useRouter();
 
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
@@ -92,11 +95,18 @@ export default function SettingsPage() {
   const [newUserRole, setNewUserRole] = useState('Staff');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-
-  const isSuperAdmin = userAccounts.find(acc => acc.id === selectedAccount)?.role === 'Super Admin';
+  const isSuperAdmin = user?.email === 'rifkiandrean@gmail.com';
+  const selectedUserIsSuperAdmin = userAccounts.find(acc => acc.id === selectedAccount)?.role === 'Super Admin';
 
   useEffect(() => {
-    if (isSuperAdmin) {
+      if (!isUserLoading && !isSuperAdmin) {
+          router.push('/');
+      }
+  }, [user, isUserLoading, isSuperAdmin, router]);
+
+
+  useEffect(() => {
+    if (selectedUserIsSuperAdmin) {
         const allTruePermissions: { [key: string]: boolean } = {};
         allPermissions.forEach(p => {
             allTruePermissions[p.id] = true;
@@ -107,7 +117,7 @@ export default function SettingsPage() {
     } else if (!permissionsLoading) {
         setPermissions(defaultPermissions);
     }
-  }, [selectedAccount, isSuperAdmin, savedPermissions, permissionsLoading]);
+  }, [selectedAccount, selectedUserIsSuperAdmin, savedPermissions, permissionsLoading]);
 
 
   const handleMenuItemChange = (id: number, field: 'name' | 'path', value: string) => {
@@ -129,7 +139,7 @@ export default function SettingsPage() {
   };
 
   const handlePermissionChange = (permissionId: string) => {
-    if (isSuperAdmin) return; // Prevent changes for Super Admin
+    if (selectedUserIsSuperAdmin) return; // Prevent changes for Super Admin
     setPermissions((prev) => ({
       ...prev,
       [permissionId]: !prev[permissionId],
@@ -137,7 +147,7 @@ export default function SettingsPage() {
   };
 
   const handleSavePermissions = async () => {
-    if (!firestore || !selectedAccount || isSuperAdmin) return;
+    if (!firestore || !selectedAccount || selectedUserIsSuperAdmin) return;
     
     const docRef = doc(firestore, 'userPermissions', selectedAccount);
     const dataToSave = {
@@ -155,6 +165,14 @@ export default function SettingsPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Layanan otentikasi tidak tersedia.',
+        });
+        return;
+    }
     if (!newUserEmail || !newUserPassword) {
       toast({
         variant: 'destructive',
@@ -197,6 +215,26 @@ export default function SettingsPage() {
       setIsCreatingUser(false);
     }
   };
+
+  if (isUserLoading || !isSuperAdmin) {
+      return (
+        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-9 w-64" />
+            </div>
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-48" />
+                    <Skeleton className="h-4 w-72" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                </CardContent>
+            </Card>
+        </main>
+      )
+  }
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -335,24 +373,24 @@ export default function SettingsPage() {
                           id={`perm-${permission.id}`}
                           checked={permissions[permission.id] || false}
                           onCheckedChange={() => handlePermissionChange(permission.id)}
-                          disabled={isSuperAdmin || permissionsLoading}
+                          disabled={selectedUserIsSuperAdmin || permissionsLoading}
                         />
                         <Label
                           htmlFor={`perm-${permission.id}`}
-                          className={cn("font-normal", (isSuperAdmin || permissionsLoading) ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer")}
+                          className={cn("font-normal", (selectedUserIsSuperAdmin || permissionsLoading) ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer")}
                         >
                           {permission.label}
                         </Label>
                       </div>
                     ))}
                   </div>
-                   {isSuperAdmin && (
+                   {selectedUserIsSuperAdmin && (
                         <p className="text-sm text-accent-foreground rounded-md bg-accent p-2">
                             Akun Super Admin memiliki semua izin akses dan tidak dapat diubah.
                         </p>
                     )}
                   <div className="flex justify-end pt-4">
-                    <Button className="bg-primary" onClick={handleSavePermissions} disabled={isSuperAdmin}>Simpan Perubahan Hak Akses</Button>
+                    <Button className="bg-primary" onClick={handleSavePermissions} disabled={selectedUserIsSuperAdmin}>Simpan Perubahan Hak Akses</Button>
                   </div>
                 </div>
               </AccordionContent>
@@ -360,7 +398,7 @@ export default function SettingsPage() {
           </Accordion>
         </CardContent>
       </Card>
-      {user?.email === 'rifkiandrean@gmail.com' && (
+      {isSuperAdmin && (
         <Card className="mt-8">
             <CardHeader>
                 <CardTitle>Tambah Akun Baru</CardTitle>
