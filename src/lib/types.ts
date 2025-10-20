@@ -1,3 +1,4 @@
+
 export type PaymentRequest = {
   id: string;
   requestor: string;
@@ -14,4 +15,12 @@ export type Budget = {
   actual: number;
 };
 
-    
+export type LeaveRequest = {
+  id: string;
+  employeeName: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  requestDate: string;
+  status: 'pending' | 'approved' | 'rejected';
+};

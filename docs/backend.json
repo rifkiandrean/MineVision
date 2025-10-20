@@ -362,6 +362,43 @@
         }
       },
       "required": ["category", "budgeted", "actual"]
+    },
+    "LeaveRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LeaveRequest",
+      "type": "object",
+      "description": "Represents a leave request from an employee.",
+      "properties": {
+        "employeeName": {
+          "type": "string",
+          "description": "Name of the employee requesting leave."
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Start date of the leave."
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date",
+          "description": "End date of the leave."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for the leave request."
+        },
+        "requestDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The date the request was submitted."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "The current status of the leave request."
+        }
+      },
+      "required": ["employeeName", "startDate", "endDate", "reason", "requestDate", "status"]
     }
   },
   "auth": {
@@ -410,6 +447,14 @@
             "entityName": "Budget",
             "schema": { "$ref": "#/backend/entities/Budget" },
             "description": "Stores budget vs actual spending data."
+        }
+      },
+      {
+        "path": "/leaveRequests/{requestId}",
+        "definition": {
+          "entityName": "LeaveRequest",
+          "schema": { "$ref": "#/backend/entities/LeaveRequest" },
+          "description": "Stores all employee leave requests."
         }
       },
       {
@@ -525,8 +570,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system."
   }
 }
-
-    

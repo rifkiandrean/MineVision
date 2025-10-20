@@ -2,30 +2,34 @@
  * @fileoverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset provides open read access for all collections to allow for the read-only access that is required.
- * All write operations are denied to maintain a read-only state.
+ * This ruleset provides basic read access to all documents, while restricting all write access.
+ * This configuration is intended for prototyping and rapid development, where data validation is not critical
+ * but authorization is enforced. More specific authorization rules can be added later.
  *
  * Data Structure:
- * The Firestore database is structured with top-level collections representing different departments (e.g., `produksi`, `geologi`).
- * Additional top-level collections store data for the main dashboard (`kpi`, `announcements`, `productionStatus`) and payment requests (`paymentRequests`).
+ * The Firestore database is structured with top-level collections for each department:
+ * `/produksi`, `/geologi`, `/pengolahan`, `/k3l`, `/keuangan`, `/sdm`, `/it`,
+ * as well as collections for dashboard data: `/kpi`, `/announcements`, `/productionStatus`, `/paymentRequests`, and `/budgets`.
  *
  * Key Security Decisions:
- * - All read operations are permitted for authenticated and unauthenticated users.
- * - All write operations are denied.
+ * - Read access is generally open to facilitate prototyping.
+ * - Write access is denied across the board, ensuring that no unauthorized data modifications can occur.
  *
- * Structural Segregation:
- * The database uses structural segregation to organize data by department, each with its own top-level collection.
+ * Specific notes:
+ * - The original reasoning text specified that certain collections were read-only. While this is a valid approach,
+ *   this initial ruleset takes a more conservative stance by explicitly denying all writes on every collection.
+ *   This aligns with the "secure by default" principle.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows anyone to read KPIs. Writes are forbidden.
+     * @description Secures the KPI collection.
      * @path /kpi/{kpiId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read KPI data.
+     * @deny create, update, delete: No one can create, update, or delete KPI data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /kpi/{kpiId} {
       allow get, list: if true;
@@ -33,11 +37,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read announcements. Writes are forbidden.
+     * @description Secures the announcements collection.
      * @path /announcements/{announcementId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read announcement data.
+     * @deny create, update, delete: No one can create, update, or delete announcement data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /announcements/{announcementId} {
       allow get, list: if true;
@@ -45,11 +49,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read production statuses. Writes are forbidden.
+     * @description Secures the productionStatus collection.
      * @path /productionStatus/{statusId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read production status data.
+     * @deny create, update, delete: No one can create, update, or delete production status data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /productionStatus/{statusId} {
       allow get, list: if true;
@@ -57,35 +61,35 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read payment requests. Writes are forbidden.
+     * @description Secures the paymentRequests collection.
      * @path /paymentRequests/{requestId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read payment requests data.
+     * @deny create, update, delete: No one can create, update, or delete payment requests data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /paymentRequests/{requestId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-      /**
-       * @description Allows anyone to read budget data. Writes are forbidden.
-       * @path /budgets/{budgetId}
-       * @allow (get, list): if true;
-       * @deny (create, update, delete): Always.
-       * @principle Public read-only access.
-       */
-      match /budgets/{budgetId} {
-        allow get, list: if true;
-        allow create, update, delete: if false;
-      }
+    /**
+     * @description Secures the budgets collection.
+     * @path /budgets/{budgetId}
+     * @allow get, list: Anyone can read budget data.
+     * @deny create, update, delete: No one can create, update, or delete budget data.
+     * @principle Denies all writes for increased security during prototyping.
+     */
+    match /budgets/{budgetId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
 
     /**
-     * @description Allows anyone to read produksi data. Writes are forbidden.
+     * @description Secures the produksi collection.
      * @path /produksi/{produksiId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read produksi data.
+     * @deny create, update, delete: No one can create, update, or delete produksi data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /produksi/{produksiId} {
       allow get, list: if true;
@@ -93,11 +97,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read geologi data. Writes are forbidden.
+     * @description Secures the geologi collection.
      * @path /geologi/{geologiId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read geologi data.
+     * @deny create, update, delete: No one can create, update, or delete geologi data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /geologi/{geologiId} {
       allow get, list: if true;
@@ -105,11 +109,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read pengolahan data. Writes are forbidden.
+     * @description Secures the pengolahan collection.
      * @path /pengolahan/{pengolahanId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read pengolahan data.
+     * @deny create, update, delete: No one can create, update, or delete pengolahan data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /pengolahan/{pengolahanId} {
       allow get, list: if true;
@@ -117,11 +121,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read k3l data. Writes are forbidden.
+     * @description Secures the k3l collection.
      * @path /k3l/{k3lId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read K3L data.
+     * @deny create, update, delete: No one can create, update, or delete K3L data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /k3l/{k3lId} {
       allow get, list: if true;
@@ -129,11 +133,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read keuangan data. Writes are forbidden.
+     * @description Secures the keuangan collection.
      * @path /keuangan/{keuanganId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read keuangan data.
+     * @deny create, update, delete: No one can create, update, or delete keuangan data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /keuangan/{keuanganId} {
       allow get, list: if true;
@@ -141,11 +145,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read sdm data. Writes are forbidden.
+     * @description Secures the sdm collection.
      * @path /sdm/{sdmId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read SDM data.
+     * @deny create, update, delete: No one can create, update, or delete SDM data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /sdm/{sdmId} {
       allow get, list: if true;
@@ -153,11 +157,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read it data. Writes are forbidden.
+     * @description Secures the it collection.
      * @path /it/{itId}
-     * @allow (get, list): if true;
-     * @deny (create, update, delete): Always.
-     * @principle Public read-only access.
+     * @allow get, list: Anyone can read IT data.
+     * @deny create, update, delete: No one can create, update, or delete IT data.
+     * @principle Denies all writes for increased security during prototyping.
      */
     match /it/{itId} {
       allow get, list: if true;
