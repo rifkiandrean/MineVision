@@ -1,0 +1,419 @@
+{
+  "entities": {
+    "MineVisionDashboard": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MineVisionDashboard",
+      "type": "object",
+      "description": "Represents the main dashboard of the MineVision application, aggregating data from various departments.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the dashboard instance."
+        },
+        "operationSummary": {
+          "type": "string",
+          "description": "Summary of mining operations."
+        },
+        "k3lMetrics": {
+          "type": "string",
+          "description": "Key K3L (Kesehatan, Keselamatan Kerja & Lingkungan) metrics."
+        },
+        "productionStatus": {
+          "type": "string",
+          "description": "Real-time production status."
+        },
+        "announcements": {
+          "type": "string",
+          "description": "Important announcements related to the mining operation."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Timestamp of the last dashboard update.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "Produksi": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Produksi",
+      "type": "object",
+      "description": "Represents the production department data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Production data."
+        },
+        "miningScheduleDetails": {
+          "type": "string",
+          "description": "Details of the mining schedule."
+        },
+        "heavyEquipmentReports": {
+          "type": "string",
+          "description": "Reports on heavy equipment."
+        },
+        "gpsLocationData": {
+          "type": "string",
+          "description": "GPS location data."
+        },
+        "fuelConsumptionStatus": {
+          "type": "string",
+          "description": "Fuel consumption status."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Timestamp of the last data update.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "Geologi": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Geologi",
+      "type": "object",
+      "description": "Represents the geology department data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Geology data."
+        },
+        "reserveMaps": {
+          "type": "string",
+          "description": "Maps of reserves."
+        },
+        "drillingResultsData": {
+          "type": "string",
+          "description": "Drilling results data (logs, assays)."
+        },
+        "resourceReserveReports": {
+          "type": "string",
+          "description": "Reports on resource reserves."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Timestamp of the last data update.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "Pengolahan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Pengolahan",
+      "type": "object",
+      "description": "Represents the pengolahan (processing) department data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Pengolahan data."
+        },
+        "crusherPlantStatus": {
+          "type": "string",
+          "description": "Status of the crusher/plant."
+        },
+        "productQualityData": {
+          "type": "string",
+          "description": "Product quality data (kalori, moisture)."
+        },
+        "equipmentPerformanceReports": {
+          "type": "string",
+          "description": "Equipment performance reports."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Timestamp of the last data update.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "K3L": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "K3L",
+      "type": "object",
+      "description": "Represents the K3L (Kesehatan, Keselamatan Kerja & Lingkungan) department data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the K3L data."
+        },
+        "incidentAccidentDashboard": {
+          "type": "string",
+          "description": "Dashboard of incidents/accidents."
+        },
+        "hazardReportForms": {
+          "type": "string",
+          "description": "Hazard report forms."
+        },
+        "environmentalComplianceAuditChecklist": {
+          "type": "string",
+          "description": "Environmental compliance audit checklist."
+        },
+        "k3TrainingStatus": {
+          "type": "string",
+          "description": "K3 training status."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Timestamp of the last data update.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "Keuangan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Keuangan",
+      "type": "object",
+      "description": "Represents the keuangan (finance) department data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Keuangan data."
+        },
+        "budgetReports": {
+          "type": "string",
+          "description": "Budget reports."
+        },
+        "operationalExpenses": {
+          "type": "string",
+          "description": "Operational expenses."
+        },
+        "contractorPaymentStatus": {
+          "type": "string",
+          "description": "Contractor payment status."
+        },
+        "salesDashboard": {
+          "type": "string",
+          "description": "Sales dashboard."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Timestamp of the last data update.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "SDM": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SDM",
+      "type": "object",
+      "description": "Represents the SDM (Sumber Daya Manusia, HRD) department data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the SDM data."
+        },
+        "employeeDatabase": {
+          "type": "string",
+          "description": "Employee database."
+        },
+        "leaveManagement": {
+          "type": "string",
+          "description": "Leave management."
+        },
+        "digitalAttendance": {
+          "type": "string",
+          "description": "Digital attendance."
+        },
+        "trainingSchedules": {
+          "type": "string",
+          "description": "Training schedules."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Timestamp of the last data update.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "IT": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "IT",
+      "type": "object",
+      "description": "Represents the IT department data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the IT data."
+        },
+        "itAssetInventory": {
+          "type": "string",
+          "description": "IT asset inventory."
+        },
+        "helpdeskTickets": {
+          "type": "string",
+          "description": "Helpdesk tickets."
+        },
+        "networkStatus": {
+          "type": "string",
+          "description": "Network status."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "Timestamp of the last data update.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/mineVisionDashboards/{mineVisionDashboardId}",
+        "definition": {
+          "entityName": "MineVisionDashboard",
+          "schema": {
+            "$ref": "#/backend/entities/MineVisionDashboard"
+          },
+          "description": "Stores MineVision dashboard data. No authorization context required as the application is read-only.",
+          "params": [
+            {
+              "name": "mineVisionDashboardId",
+              "description": "The unique ID of the MineVision dashboard document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/produksi/{produksiId}",
+        "definition": {
+          "entityName": "Produksi",
+          "schema": {
+            "$ref": "#/backend/entities/Produksi"
+          },
+          "description": "Stores produksi department data. No authorization context required as the application is read-only.",
+          "params": [
+            {
+              "name": "produksiId",
+              "description": "The unique ID of the produksi document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/geologi/{geologiId}",
+        "definition": {
+          "entityName": "Geologi",
+          "schema": {
+            "$ref": "#/backend/entities/Geologi"
+          },
+          "description": "Stores geologi department data. No authorization context required as the application is read-only.",
+          "params": [
+            {
+              "name": "geologiId",
+              "description": "The unique ID of the geologi document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/pengolahan/{pengolahanId}",
+        "definition": {
+          "entityName": "Pengolahan",
+          "schema": {
+            "$ref": "#/backend/entities/Pengolahan"
+          },
+          "description": "Stores pengolahan department data. No authorization context required as the application is read-only.",
+          "params": [
+            {
+              "name": "pengolahanId",
+              "description": "The unique ID of the pengolahan document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/k3l/{k3lId}",
+        "definition": {
+          "entityName": "K3L",
+          "schema": {
+            "$ref": "#/backend/entities/K3L"
+          },
+          "description": "Stores K3L department data. No authorization context required as the application is read-only.",
+          "params": [
+            {
+              "name": "k3lId",
+              "description": "The unique ID of the K3L document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/keuangan/{keuanganId}",
+        "definition": {
+          "entityName": "Keuangan",
+          "schema": {
+            "$ref": "#/backend/entities/Keuangan"
+          },
+          "description": "Stores keuangan department data. No authorization context required as the application is read-only.",
+          "params": [
+            {
+              "name": "keuanganId",
+              "description": "The unique ID of the keuangan document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sdm/{sdmId}",
+        "definition": {
+          "entityName": "SDM",
+          "schema": {
+            "$ref": "#/backend/entities/SDM"
+          },
+          "description": "Stores SDM department data. No authorization context required as the application is read-only.",
+          "params": [
+            {
+              "name": "sdmId",
+              "description": "The unique ID of the SDM document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/it/{itId}",
+        "definition": {
+          "entityName": "IT",
+          "schema": {
+            "$ref": "#/backend/entities/IT"
+          },
+          "description": "Stores IT department data. No authorization context required as the application is read-only.",
+          "params": [
+            {
+              "name": "itId",
+              "description": "The unique ID of the IT document."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. This segregation ensures that each collection has a homogeneous security posture. The MineVisionDashboard is stored in a top-level collection for easy access. There is no ownership specified, therefore all data is publicly accessible."
+  }
+}
