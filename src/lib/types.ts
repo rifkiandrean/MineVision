@@ -6,3 +6,12 @@ export type PaymentRequest = {
   date: string;
   status: 'pending' | 'approved' | 'rejected';
 };
+
+export type Budget = {
+  id: string;
+  category: string;
+  budgeted: number;
+  actual: number;
+};
+
+    

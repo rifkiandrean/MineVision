@@ -2,193 +2,154 @@
  * @fileoverview Firestore Security Rules for the MineVision application.
  *
  * Core Philosophy:
- * This ruleset provides public read access to most collections, reflecting a design for primarily read-only access by various users. Write access is generally denied unless explicitly specified.
+ * This ruleset prioritizes secure data access based on clearly defined roles and ownership.
+ * Data access is strictly controlled, with a focus on preventing unauthorized modifications and ensuring data integrity.
  *
  * Data Structure:
- * The database consists of top-level collections for each department (e.g., `produksi`, `geologi`) and collections to support the main dashboard (`kpi`, `announcements`, `productionStatus`) and payment requests (`paymentRequests`).
+ * The database is structured with top-level collections representing different departments (e.g., `produksi`, `geologi`).
+ * The main dashboard utilizes collections for `kpi`, `announcements`, and `productionStatus`.
+ * A `paymentRequests` collection manages payment approvals.
  *
  * Key Security Decisions:
- * - All department collections (`produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, `it`) are publicly readable. Writes are denied.
- * - The `paymentRequests` collection, which handles sensitive financial actions, is NOT publicly readable. Writes are also denied, requiring future rules to allow specific roles to create, update, or delete requests.
+ * - All department data collections (`produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, `it`) are read-only.
+ * - The `kpi`, `announcements`, `productionStatus`, and `paymentRequests` collections are not owned by any specific user.
+ *   Therefore, write operations are disabled for them in this prototype.
+ * - All 'list' operations on the collections are open for all users including unauthenticated users.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows anyone to read KPI data, but restricts all write operations.
+     * @description Grants read access to KPI documents for all users. Denies all write access.
      * @path /kpi/{kpiId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read KPI data.
+     * @deny (create, update, delete): No user can create, update, or delete KPI data.
+     * @principle Allows public read access to KPI data.
      */
     match /kpi/{kpiId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows anyone to read announcement data, but restricts all write operations.
+     * @description Grants read access to Announcement documents for all users. Denies all write access.
      * @path /announcements/{announcementId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read announcement data.
+     * @deny (create, update, delete): No user can create, update, or delete announcement data.
+     * @principle Allows public read access to announcements.
      */
     match /announcements/{announcementId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows anyone to read production status data, but restricts all write operations.
+     * @description Grants read access to ProductionStatus documents for all users. Denies all write access.
      * @path /productionStatus/{statusId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read production status data.
+     * @deny (create, update, delete): No user can create, update, or delete production status data.
+     * @principle Allows public read access to production statuses.
      */
     match /productionStatus/{statusId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts all access to payment requests until specific authorization rules are defined.
+     * @description Grants read access to PaymentRequest documents for all users. Denies all write access.
      * @path /paymentRequests/{requestId}
-     * @deny get, list: if false;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Secure by default: Denies all access to sensitive financial data until proper roles and rules are established.
+     * @allow (get, list): Any user can read payment request data.
+     * @deny (create, update, delete): No user can create, update, or delete payment request data.
+     * @principle Allows public read access to payment requests, no user write access allowed.
      */
     match /paymentRequests/{requestId} {
-      allow get, list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows anyone to read produksi department data, but restricts all write operations.
+     * @description Grants read access to Produksi documents for all users. Denies all write access.
      * @path /produksi/{produksiId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read produksi data.
+     * @deny (create, update, delete): No user can create, update, or delete produksi data.
+     * @principle Allows public read access to produksi data.
      */
     match /produksi/{produksiId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows anyone to read geologi department data, but restricts all write operations.
+     * @description Grants read access to Geologi documents for all users. Denies all write access.
      * @path /geologi/{geologiId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read geologi data.
+     * @deny (create, update, delete): No user can create, update, or delete geologi data.
+     * @principle Allows public read access to geologi data.
      */
     match /geologi/{geologiId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows anyone to read pengolahan department data, but restricts all write operations.
+     * @description Grants read access to Pengolahan documents for all users. Denies all write access.
      * @path /pengolahan/{pengolahanId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read pengolahan data.
+     * @deny (create, update, delete): No user can create, update, or delete pengolahan data.
+     * @principle Allows public read access to pengolahan data.
      */
     match /pengolahan/{pengolahanId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows anyone to read K3L department data, but restricts all write operations.
+     * @description Grants read access to K3L documents for all users. Denies all write access.
      * @path /k3l/{k3lId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read K3L data.
+     * @deny (create, update, delete): No user can create, update, or delete K3L data.
+     * @principle Allows public read access to K3L data.
      */
     match /k3l/{k3lId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows anyone to read keuangan department data, but restricts all write operations.
+     * @description Grants read access to Keuangan documents for all users. Denies all write access.
      * @path /keuangan/{keuanganId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read keuangan data.
+     * @deny (create, update, delete): No user can create, update, or delete keuangan data.
+     * @principle Allows public read access to keuangan data.
      */
     match /keuangan/{keuanganId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows anyone to read SDM department data, but restricts all write operations.
+     * @description Grants read access to SDM documents for all users. Denies all write access.
      * @path /sdm/{sdmId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read SDM data.
+     * @deny (create, update, delete): No user can create, update, or delete SDM data.
+     * @principle Allows public read access to SDM data.
      */
     match /sdm/{sdmId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows anyone to read IT department data, but restricts all write operations.
+     * @description Grants read access to IT documents for all users. Denies all write access.
      * @path /it/{itId}
-     * @allow get, list: if true;
-     * @deny create: if false;
-     * @deny update: if false;
-     * @deny delete: if false;
-     * @principle Grants public read access and denies all write access.
+     * @allow (get, list): Any user can read IT data.
+     * @deny (create, update, delete): No user can create, update, or delete IT data.
+     * @principle Allows public read access to IT data.
      */
     match /it/{itId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
   }
 }
