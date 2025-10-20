@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   SidebarHeader,
   SidebarContent,
@@ -43,6 +43,7 @@ import {
   UserCircle,
   Pickaxe,
 } from "lucide-react";
+import { useFirebase } from "@/firebase";
 
 const navItems = [
   { href: "/", icon: <LayoutDashboard />, label: "Dashboard" },
@@ -60,9 +61,17 @@ const adminNavItems = [
 
 export default function SidebarNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { auth, user } = useFirebase();
   const [isAdminOpen, setIsAdminOpen] = useState(
     pathname.startsWith("/administrasi")
   );
+
+  const handleLogout = () => {
+    auth.signOut();
+    router.push('/login');
+  };
+
 
   return (
     <>
@@ -76,16 +85,13 @@ export default function SidebarNav() {
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <Link href={item.href} passHref>
+              <Link href={item.href}>
                 <SidebarMenuButton
-                  asChild
                   isActive={pathname === item.href}
                   className="w-full justify-start"
                 >
-                  <a>
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </a>
+                  {item.icon}
+                  <span>{item.label}</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
@@ -111,17 +117,14 @@ export default function SidebarNav() {
             <CollapsibleContent className="pl-4">
               {adminNavItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
-                  <Link href={item.href} passHref>
+                  <Link href={item.href}>
                     <SidebarMenuButton
-                      asChild
                       isActive={pathname === item.href}
                       className="w-full justify-start"
                       variant="ghost"
                     >
-                      <a>
-                        {item.icon}
-                        <span>{item.label}</span>
-                      </a>
+                      {item.icon}
+                      <span>{item.label}</span>
                     </SidebarMenuButton>
                   </Link>
                 </SidebarMenuItem>
@@ -136,20 +139,20 @@ export default function SidebarNav() {
             <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
               <Avatar className="h-9 w-9">
                 <AvatarImage src="https://picsum.photos/seed/avatar/100/100" alt="User Avatar" data-ai-hint="person portrait"/>
-                <AvatarFallback>JD</AvatarFallback>
+                <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <p className="text-sm font-medium">John Doe</p>
-                <p className="text-xs text-muted-foreground">john.doe@minevision.co</p>
+                <p className="text-sm font-medium">{user?.displayName || 'User'}</p>
+                <p className="text-xs text-muted-foreground">{user?.email || 'No email'}</p>
               </div>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">John Doe</p>
+                <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  john.doe@minevision.co
+                  {user?.email || 'No email'}
                 </p>
               </div>
             </DropdownMenuLabel>
@@ -158,7 +161,7 @@ export default function SidebarNav() {
               <UserCircle className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>
