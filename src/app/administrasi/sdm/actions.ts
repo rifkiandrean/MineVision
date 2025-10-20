@@ -1,10 +1,6 @@
-
 'use server';
 
-import { addDoc, collection, getFirestore } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index';
 import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
 
 const formSchema = z.object({
   employeeName: z.string().min(1, 'Nama karyawan diperlukan'),
@@ -13,7 +9,19 @@ const formSchema = z.object({
   reason: z.string().min(5, 'Alasan harus diisi, minimal 5 karakter'),
 });
 
-export async function handleLeaveRequest(prevState: any, formData: FormData) {
+export type FormState = {
+  message: string;
+  errors?: Record<string, string | undefined>;
+  data?: {
+    employeeName: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+  };
+};
+
+
+export async function validateLeaveRequest(prevState: any, formData: FormData): Promise<FormState> {
   const validatedFields = formSchema.safeParse({
     employeeName: formData.get('employeeName'),
     startDate: formData.get('startDate'),
@@ -34,26 +42,9 @@ export async function handleLeaveRequest(prevState: any, formData: FormData) {
     };
   }
 
-  try {
-    // We need to initialize firebase server-side to get the firestore instance
-    const { firestore } = initializeFirebase();
-    const leaveRequestsCollection = collection(firestore, 'leaveRequests');
-    
-    const newRequest = {
-      ...validatedFields.data,
-      requestDate: new Date().toISOString(),
-      status: 'pending',
-    };
-
-    // Use addDoc directly from the firestore sdk on the server
-    await addDoc(leaveRequestsCollection, newRequest);
-    
-    revalidatePath('/administrasi/sdm');
-
-    return { message: 'Pengajuan cuti Anda telah berhasil dikirim.' };
-  } catch (e: any) {
-    return {
-      message: 'Error: Gagal menyimpan pengajuan ke database. ' + e.message,
-    };
-  }
+  // If validation is successful, return the data to the client
+  return {
+    message: 'Validation successful. Submitting...',
+    data: validatedFields.data,
+  };
 }

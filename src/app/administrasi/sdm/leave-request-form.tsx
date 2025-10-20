@@ -3,7 +3,7 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { handleLeaveRequest } from './actions';
+import { validateLeaveRequest, type FormState } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,12 +19,8 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase } from '@/firebase';
-
-type FormState = {
-  message: string;
-  errors?: Record<string, string>;
-};
+import { useFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection } from 'firebase/firestore';
 
 const initialState: FormState = {
   message: '',
@@ -47,33 +43,43 @@ function SubmitButton() {
 }
 
 export function LeaveRequestForm() {
-  const { user } = useFirebase();
-  const [state, formAction] = useActionState(handleLeaveRequest, initialState);
+  const { user, firestore } = useFirebase();
+  const [state, formAction] = useActionState(validateLeaveRequest, initialState);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (state.message) {
-      if (state.message.startsWith('Error')) {
-        toast({
-          variant: 'destructive',
-          title: 'Gagal Mengajukan Cuti',
-          description: state.message,
-        });
-      } else {
-        toast({
-          title: 'Pengajuan Berhasil',
-          description: state.message,
-        });
-        // Reset form
-        setStartDate(undefined);
-        setEndDate(undefined);
-        const form = document.getElementById('leave-request-form') as HTMLFormElement;
-        form.reset();
-      }
+    if (state.message.startsWith('Error')) {
+      toast({
+        variant: 'destructive',
+        title: 'Gagal Mengajukan Cuti',
+        description: state.message,
+      });
+    } else if (state.data && firestore) {
+      // Data is valid, now save it from the client
+      const leaveRequestsCollection = collection(firestore, 'leaveRequests');
+      const newRequest = {
+        ...state.data,
+        requestDate: new Date().toISOString(),
+        status: 'pending',
+      };
+      
+      addDocumentNonBlocking(leaveRequestsCollection, newRequest);
+      
+      toast({
+        title: 'Pengajuan Berhasil',
+        description: 'Pengajuan cuti Anda telah berhasil dikirim.',
+      });
+
+      // Reset form
+      setStartDate(undefined);
+      setEndDate(undefined);
+      const form = document.getElementById('leave-request-form') as HTMLFormElement;
+      form.reset();
+
     }
-  }, [state, toast]);
+  }, [state, toast, firestore]);
 
   return (
     <form id="leave-request-form" action={formAction} className="space-y-4">
