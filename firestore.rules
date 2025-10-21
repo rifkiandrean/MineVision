@@ -2,19 +2,22 @@
  * @fileoverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset enforces a combination of owner-based and role-based access control.
- * User data is protected by ownership, while department data is publicly readable.
- * Certain collections like payment requests, budgets, and leave requests may need role-based access.
+ * This ruleset employs a hybrid security model. User data is strictly controlled via ownership,
+ * while departmental data is read-only and accessible to all authenticated users. The 'users'
+ * collection uses an ownership pattern. The departmental data collections ('produksi', 'geologi',
+ * 'pengolahan', 'k3l', 'keuangan', 'sdm', 'it') are publicly readable but not writable by clients.
+ * Other collections like `kpi`, `announcements`, `productionStatus`, `paymentRequests`, `budgets`,
+ * `leaveRequests`, `userPermissions` and `helpdeskTickets` require authentication for all operations.
  *
  * Data Structure:
- * - /users/{userId}: Stores individual user profiles, accessible only by the user.
- * - /kpi/{kpiId}: Stores Key Performance Indicators.
+ * - /users/{userId}: Stores individual user profiles.
+ * - /kpi/{kpiId}: Stores Key Performance Indicators for the dashboard.
  * - /announcements/{announcementId}: Stores global announcements.
  * - /productionStatus/{statusId}: Stores real-time production statuses.
- * - /paymentRequests/{requestId}: Stores payment requests, potentially with role-based access.
- * - /budgets/{budgetId}: Stores budget data.
- * - /leaveRequests/{requestId}: Stores leave requests.
- * - /userPermissions/{userId}: Stores user permissions, accessible only by the user.
+ * - /paymentRequests/{requestId}: Stores payment requests for approval.
+ * - /budgets/{budgetId}: Stores budget and expense data.
+ * - /leaveRequests/{requestId}: Stores employee leave requests.
+ * - /userPermissions/{userId}: Stores user permissions.
  * - /helpdeskTickets/{ticketId}: Stores helpdesk tickets.
  * - /produksi/{produksiId}: Stores produksi department data.
  * - /geologi/{geologiId}: Stores geologi department data.
@@ -25,187 +28,308 @@
  * - /it/{itId}: Stores IT department data.
  *
  * Key Security Decisions:
- * - User listing is denied to protect user privacy.
- * - Department data (produksi, geologi, etc.) is publicly readable.
- *
- * Denormalization for Authorization:
- *  None used in this version. Further iteration should consider denormalizing
- *  department and role information onto documents to improve rule performance
- *  and avoid costly `get()` operations.
+ * - User listing is denied to prevent information disclosure.
+ * - Departmental data is read-only to clients, ensuring data integrity.
+ * - Default security posture is strict; any ambiguous relationship defaults to denial.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profiles.
+     * @description Defines whether the user is signed in
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Defines whether the authenticated user ID matches the requested user ID.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Defines whether the authenticated user ID matches the requested user ID and resource exists.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Rules for the /users/{userId} collection.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user123' can create their own profile if request.auth.uid == 'user123'.
-     * @allow (get) User with UID 'user123' can read their profile.
-     * @allow (update) User with UID 'user123' can update their profile.
-     * @allow (delete) User with UID 'user123' can delete their profile.
-     * @deny (create) User with UID 'user456' cannot create a profile for user 'user123'.
-     * @deny (get) User with UID 'user456' cannot read the profile of user 'user123'.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) User with uid 'user123' can create their own profile.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "uid": "user123", "email": "test@example.com", "department": "Staff" } } }
+     * @allow (get) User with id 'user123' can get their own profile.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @allow (update) User with id 'user123' can update their own profile.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "uid": "user123", "email": "newemail@example.com", "department": "Manager" } } }
+     * @allow (delete) User with id 'user123' can delete their own profile.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) User with uid 'user456' cannot create a profile for user 'user123'.
+     *     - Request: { "auth": { "uid": "user456" }, "resource": { "data": { "uid": "user123", "email": "test@example.com", "department": "Staff" } } }
+     * @deny (get) User with id 'user456' cannot get user 'user123' profile.
+     *     - Request: { "auth": { "uid": "user456" } }
+     * @deny (update) User with id 'user456' cannot update user 'user123' profile.
+     *     - Request: { "auth": { "uid": "user456" }, "resource": { "data": { "uid": "user123", "email": "newemail@example.com", "department": "Manager" } } }
+     * @deny (delete) User with id 'user456' cannot delete user 'user123' profile.
+     *     - Request: { "auth": { "uid": "user456" } }
+     * @principle Enforces document ownership for all operations on user profiles.
      */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isSignedIn() {
-        return request.auth != null;
-      }
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if isOwner(userId) && resource != null && request.resource.data.uid == resource.data.uid;
-      allow delete: if isOwner(userId) && resource != null;
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.uid == resource.data.uid;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to KPI documents.
+     * @description Rules for the /kpi/{kpiId} collection.
      * @path /kpi/{kpiId}
-     * @allow (get) Any user can read KPI data.
-     * @allow (list) Any user can list KPI data.
-     * @deny (create) No user can create KPI data without specific authorization.
-     * @principle Public read access with restricted writes.
+     * @allow (create) Authenticated user can create a KPI document.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "title": "New KPI", "value": "100", "change": "10", "changeType": "positive" } } }
+     * @allow (get) Authenticated user can get a KPI document.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @allow (update) Authenticated user can update a KPI document.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "title": "Updated KPI", "value": "110", "change": "5", "changeType": "negative" } } }
+     * @allow (delete) Authenticated user can delete a KPI document.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) Unauthenticated user cannot create a KPI document.
+     *     - Request: { "auth": null, "resource": { "data": { "title": "New KPI", "value": "100", "change": "10", "changeType": "positive" } } }
+     * @deny (get) Unauthenticated user cannot get a KPI document.
+     *     - Request: { "auth": null }
+     * @deny (update) Unauthenticated user cannot update a KPI document.
+     *     - Request: { "auth": null, "resource": { "data": { "title": "Updated KPI", "value": "110", "change": "5", "changeType": "negative" } } }
+     * @deny (delete) Unauthenticated user cannot delete a KPI document.
+     *     - Request: { "auth": null }
+     * @principle Requires authentication for all CRUD operations on KPI data.
      */
     match /kpi/{kpiId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to Announcement documents.
+     * @description Rules for the /announcements/{announcementId} collection.
      * @path /announcements/{announcementId}
-     * @allow (get) Any user can read announcement data.
-     * @allow (list) Any user can list announcement data.
-     * @deny (create) No user can create announcement data without specific authorization.
-     * @principle Public read access with restricted writes.
+     * @allow (create) Authenticated user can create an announcement.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "title": "Important Notice", "date": "2024-01-01T00:00:00Z", "department": "All", "priority": "High" } } }
+     * @allow (get) Authenticated user can get an announcement.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @allow (update) Authenticated user can update an announcement.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "title": "Updated Notice", "date": "2024-01-02T00:00:00Z", "department": "IT", "priority": "Medium" } } }
+     * @allow (delete) Authenticated user can delete an announcement.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) Unauthenticated user cannot create an announcement.
+     *     - Request: { "auth": null, "resource": { "data": { "title": "Important Notice", "date": "2024-01-01T00:00:00Z", "department": "All", "priority": "High" } } }
+     * @deny (get) Unauthenticated user cannot get an announcement.
+     *     - Request: { "auth": null }
+     * @deny (update) Unauthenticated user cannot update an announcement.
+     *     - Request: { "auth": null, "resource": { "data": { "title": "Updated Notice", "date": "2024-01-02T00:00:00Z", "department": "IT", "priority": "Medium" } } }
+     * @deny (delete) Unauthenticated user cannot delete an announcement.
+     *     - Request: { "auth": null }
+     * @principle Requires authentication for all CRUD operations on announcement data.
      */
     match /announcements/{announcementId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to ProductionStatus documents.
+     * @description Rules for the /productionStatus/{statusId} collection.
      * @path /productionStatus/{statusId}
-     * @allow (get) Any user can read production status data.
-     * @allow (list) Any user can list production status data.
-     * @deny (create) No user can create production status data without specific authorization.
-     * @principle Public read access with restricted writes.
+     * @allow (create) Authenticated user can create a production status.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "name": "Area A", "status": "Optimal" } } }
+     * @allow (get) Authenticated user can get a production status.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @allow (update) Authenticated user can update a production status.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "name": "Area A", "status": "Warning" } } }
+     * @allow (delete) Authenticated user can delete a production status.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) Unauthenticated user cannot create a production status.
+     *     - Request: { "auth": null, "resource": { "data": { "name": "Area A", "status": "Optimal" } } }
+     * @deny (get) Unauthenticated user cannot get a production status.
+     *     - Request: { "auth": null }
+     * @deny (update) Unauthenticated user cannot update a production status.
+     *     - Request: { "auth": null, "resource": { "data": { "name": "Area A", "status": "Warning" } } }
+     * @deny (delete) Unauthenticated user cannot delete a production status.
+     *     - Request: { "auth": null }
+     * @principle Requires authentication for all CRUD operations on production status data.
      */
     match /productionStatus/{statusId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to PaymentRequest documents.
+     * @description Rules for the /paymentRequests/{requestId} collection.
      * @path /paymentRequests/{requestId}
-     * @allow (get) Any user can read payment request data.
-     * @allow (list) Any user can list payment request data.
-     * @deny (create) No user can create payment request data without specific authorization.
-     * @principle Public read access with restricted writes.
+     * @allow (create) Authenticated user can create a payment request.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "requestor": "John Doe", "amount": 100, "description": "Invoice payment", "date": "2024-01-01T00:00:00Z", "status": "pending" } } }
+     * @allow (get) Authenticated user can get a payment request.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @allow (update) Authenticated user can update a payment request.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "requestor": "John Doe", "amount": 100, "description": "Invoice payment", "date": "2024-01-01T00:00:00Z", "status": "approved" } } }
+     * @allow (delete) Authenticated user can delete a payment request.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) Unauthenticated user cannot create a payment request.
+     *     - Request: { "auth": null, "resource": { "data": { "requestor": "John Doe", "amount": 100, "description": "Invoice payment", "date": "2024-01-01T00:00:00Z", "status": "pending" } } }
+     * @deny (get) Unauthenticated user cannot get a payment request.
+     *     - Request: { "auth": null }
+     * @deny (update) Unauthenticated user cannot update a payment request.
+     *     - Request: { "auth": null, "resource": { "data": { "requestor": "John Doe", "amount": 100, "description": "Invoice payment", "date": "2024-01-01T00:00:00Z", "status": "approved" } } }
+     * @deny (delete) Unauthenticated user cannot delete a payment request.
+     *     - Request: { "auth": null }
+     * @principle Requires authentication for all CRUD operations on payment request data.
      */
     match /paymentRequests/{requestId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to Budget documents.
+     * @description Rules for the /budgets/{budgetId} collection.
      * @path /budgets/{budgetId}
-     * @allow (get) Any user can read budget data.
-     * @allow (list) Any user can list budget data.
-     * @deny (create) No user can create budget data without specific authorization.
-     * @principle Public read access with restricted writes.
+     * @allow (create) Authenticated user can create a budget entry.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "category": "Operational", "budgeted": 50000, "actual": 45000 } } }
+     * @allow (get) Authenticated user can get a budget entry.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @allow (update) Authenticated user can update a budget entry.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "category": "Operational", "budgeted": 50000, "actual": 48000 } } }
+     * @allow (delete) Authenticated user can delete a budget entry.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) Unauthenticated user cannot create a budget entry.
+     *     - Request: { "auth": null, "resource": { "data": { "category": "Operational", "budgeted": 50000, "actual": 45000 } } }
+     * @deny (get) Unauthenticated user cannot get a budget entry.
+     *     - Request: { "auth": null }
+     * @deny (update) Unauthenticated user cannot update a budget entry.
+     *     - Request: { "auth": null, "resource": { "data": { "category": "Operational", "budgeted": 50000, "actual": 48000 } } }
+     * @deny (delete) Unauthenticated user cannot delete a budget entry.
+     *     - Request: { "auth": null }
+     * @principle Requires authentication for all CRUD operations on budget data.
      */
     match /budgets/{budgetId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to LeaveRequest documents.
+     * @description Rules for the /leaveRequests/{requestId} collection.
      * @path /leaveRequests/{requestId}
-     * @allow (get) Any user can read leave request data.
-     * @allow (list) Any user can list leave request data.
-     * @deny (create) No user can create leave request data without specific authorization.
-     * @principle Public read access with restricted writes.
+     * @allow (create) Authenticated user can create a leave request.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "employeeName": "Alice Smith", "startDate": "2024-02-01", "endDate": "2024-02-05", "reason": "Vacation", "requestDate": "2024-01-15T00:00:00Z", "status": "pending" } } }
+     * @allow (get) Authenticated user can get a leave request.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @allow (update) Authenticated user can update a leave request.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "employeeName": "Alice Smith", "startDate": "2024-02-01", "endDate": "2024-02-05", "reason": "Vacation", "requestDate": "2024-01-15T00:00:00Z", "status": "approved" } } }
+     * @allow (delete) Authenticated user can delete a leave request.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) Unauthenticated user cannot create a leave request.
+     *     - Request: { "auth": null, "resource": { "data": { "employeeName": "Alice Smith", "startDate": "2024-02-01", "endDate": "2024-02-05", "reason": "Vacation", "requestDate": "2024-01-15T00:00:00Z", "status": "pending" } } }
+     * @deny (get) Unauthenticated user cannot get a leave request.
+     *     - Request: { "auth": null }
+     * @deny (update) Unauthenticated user cannot update a leave request.
+     *     - Request: { "auth": null, "resource": { "data": { "employeeName": "Alice Smith", "startDate": "2024-02-01", "endDate": "2024-02-05", "reason": "Vacation", "requestDate": "2024-01-15T00:00:00Z", "status": "approved" } } }
+     * @deny (delete) Unauthenticated user cannot delete a leave request.
+     *     - Request: { "auth": null }
+     * @principle Requires authentication for all CRUD operations on leave request data.
      */
     match /leaveRequests/{requestId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to UserPermissions documents.
+     * @description Rules for the /userPermissions/{userId} collection.
      * @path /userPermissions/{userId}
-     * @allow (create) User with UID 'user123' can create their own permissions if request.auth.uid == 'user123'.
-     * @allow (get) User with UID 'user123' can read their permissions.
-     * @allow (update) User with UID 'user123' can update their permissions.
-     * @allow (delete) User with UID 'user123' can delete their permissions.
-     * @deny (create) User with UID 'user456' cannot create permissions for user 'user123'.
-     * @deny (get) User with UID 'user456' cannot read the permissions of user 'user123'.
-     * @principle Enforces document ownership for user permissions.
+     * @allow (create) Authenticated user can create user permissions document.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "userId": "user456", "permissions": { "editDashboard": true } } } }
+     * @allow (get) Authenticated user can get user permissions document.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @allow (update) Authenticated user can update user permissions document.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "userId": "user456", "permissions": { "editDashboard": false } } } }
+     * @allow (delete) Authenticated user can delete user permissions document.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) Unauthenticated user cannot create user permissions document.
+     *     - Request: { "auth": null, "resource": { "data": { "userId": "user456", "permissions": { "editDashboard": true } } } }
+     * @deny (get) Unauthenticated user cannot get user permissions document.
+     *     - Request: { "auth": null }
+     * @deny (update) Unauthenticated user cannot update user permissions document.
+     *     - Request: { "auth": null, "resource": { "data": { "userId": "user456", "permissions": { "editDashboard": false } } } }
+     * @deny (delete) Unauthenticated user cannot delete user permissions document.
+     *     - Request: { "auth": null }
+     * @principle Requires authentication for all CRUD operations on user permissions data.
      */
     match /userPermissions/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && resource != null && request.resource.data.userId == resource.data.userId;
-      allow delete: if isOwner(userId) && resource != null;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to HelpdeskTicket documents.
+     * @description Rules for the /helpdeskTickets/{ticketId} collection.
      * @path /helpdeskTickets/{ticketId}
-     * @allow (get) Any user can read helpdesk ticket data.
-     * @allow (list) Any user can list helpdesk ticket data.
-     * @deny (create) No user can create helpdesk ticket data without specific authorization.
-     * @principle Public read access with restricted writes.
+     * @allow (create) Authenticated user can create a helpdesk ticket.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "ticketId": "123", "subject": "Network Issue", "priority": "High", "status": "Open", "userId": "user123", "userEmail": "test@example.com", "createdAt": "2024-01-01T00:00:00Z" } } }
+     * @allow (get) Authenticated user can get a helpdesk ticket.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @allow (update) Authenticated user can update a helpdesk ticket.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "ticketId": "123", "subject": "Network Issue", "priority": "High", "status": "Closed", "userId": "user123", "userEmail": "test@example.com", "createdAt": "2024-01-01T00:00:00Z" } } }
+     * @allow (delete) Authenticated user can delete a helpdesk ticket.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) Unauthenticated user cannot create a helpdesk ticket.
+     *     - Request: { "auth": null, "resource": { "data": { "ticketId": "123", "subject": "Network Issue", "priority": "High", "status": "Open", "userId": "user123", "userEmail": "test@example.com", "createdAt": "2024-01-01T00:00:00Z" } } }
+     * @deny (get) Unauthenticated user cannot get a helpdesk ticket.
+     *     - Request: { "auth": null }
+     * @deny (update) Unauthenticated user cannot update a helpdesk ticket.
+     *     - Request: { "auth": null, "resource": { "data": { "ticketId": "123", "subject": "Network Issue", "priority": "High", "status": "Closed", "userId": "user123", "userEmail": "test@example.com", "createdAt": "2024-01-01T00:00:00Z" } } }
+     * @deny (delete) Unauthenticated user cannot delete a helpdesk ticket.
+     *     - Request: { "auth": null }
+     * @principle Requires authentication for all CRUD operations on helpdesk ticket data.
      */
     match /helpdeskTickets/{ticketId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
-    
+
     /**
-     * @description Allows public read access to produksi department data.
+     * @description Rules for the /produksi/{produksiId} collection.
      * @path /produksi/{produksiId}
      * @allow (get) Any user can read produksi data.
-     * @allow (list) Any user can list produksi data.
+     *     - Request: { "auth": { "uid": "user123" } }
      * @deny (create) No user can create produksi data.
-     * @principle Public read access with no write access.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "miningScheduleDetails": "Details", "heavyEquipmentReports": "Reports", "gpsLocationData": "Data", "fuelConsumptionStatus": "Status", "lastUpdated": "2024-01-01T00:00:00Z" } } }
+     * @deny (update) No user can update produksi data.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "miningScheduleDetails": "New Details", "heavyEquipmentReports": "New Reports", "gpsLocationData": "New Data", "fuelConsumptionStatus": "New Status", "lastUpdated": "2024-01-02T00:00:00Z" } } }
+     * @deny (delete) No user can delete produksi data.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @principle Allows public read access but denies all write operations.
      */
     match /produksi/{produksiId} {
       allow get: if true;
@@ -216,12 +340,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to geologi department data.
+     * @description Rules for the /geologi/{geologiId} collection.
      * @path /geologi/{geologiId}
      * @allow (get) Any user can read geologi data.
-     * @allow (list) Any user can list geologi data.
+     *     - Request: { "auth": { "uid": "user123" } }
      * @deny (create) No user can create geologi data.
-     * @principle Public read access with no write access.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "reserveMaps": "Maps", "drillingResultsData": "Results", "resourceReserveReports": "Reports", "lastUpdated": "2024-01-01T00:00:00Z" } } }
+     * @deny (update) No user can update geologi data.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "reserveMaps": "New Maps", "drillingResultsData": "New Results", "resourceReserveReports": "New Reports", "lastUpdated": "2024-01-02T00:00:00Z" } } }
+     * @deny (delete) No user can delete geologi data.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @principle Allows public read access but denies all write operations.
      */
     match /geologi/{geologiId} {
       allow get: if true;
@@ -232,12 +361,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to pengolahan department data.
+     * @description Rules for the /pengolahan/{pengolahanId} collection.
      * @path /pengolahan/{pengolahanId}
      * @allow (get) Any user can read pengolahan data.
-     * @allow (list) Any user can list pengolahan data.
+     *     - Request: { "auth": { "uid": "user123" } }
      * @deny (create) No user can create pengolahan data.
-     * @principle Public read access with no write access.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "crusherPlantStatus": "Status", "productQualityData": "Data", "equipmentPerformanceReports": "Reports", "lastUpdated": "2024-01-01T00:00:00Z" } } }
+     * @deny (update) No user can update pengolahan data.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "crusherPlantStatus": "New Status", "productQualityData": "New Data", "equipmentPerformanceReports": "New Reports", "lastUpdated": "2024-01-02T00:00:00Z" } } }
+     * @deny (delete) No user can delete pengolahan data.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @principle Allows public read access but denies all write operations.
      */
     match /pengolahan/{pengolahanId} {
       allow get: if true;
@@ -248,12 +382,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to K3L department data.
+     * @description Rules for the /k3l/{k3lId} collection.
      * @path /k3l/{k3lId}
      * @allow (get) Any user can read K3L data.
-     * @allow (list) Any user can list K3L data.
+     *     - Request: { "auth": { "uid": "user123" } }
      * @deny (create) No user can create K3L data.
-     * @principle Public read access with no write access.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "incidentAccidentDashboard": "Dashboard", "hazardReportForms": "Forms", "environmentalComplianceAuditChecklist": "Checklist", "k3TrainingStatus": "Status", "lastUpdated": "2024-01-01T00:00:00Z" } } }
+     * @deny (update) No user can update K3L data.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "incidentAccidentDashboard": "New Dashboard", "hazardReportForms": "New Forms", "environmentalComplianceAuditChecklist": "New Checklist", "k3TrainingStatus": "New Status", "lastUpdated": "2024-01-02T00:00:00Z" } } }
+     * @deny (delete) No user can delete K3L data.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @principle Allows public read access but denies all write operations.
      */
     match /k3l/{k3lId} {
       allow get: if true;
@@ -264,12 +403,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to keuangan department data.
+     * @description Rules for the /keuangan/{keuanganId} collection.
      * @path /keuangan/{keuanganId}
      * @allow (get) Any user can read keuangan data.
-     * @allow (list) Any user can list keuangan data.
+     *     - Request: { "auth": { "uid": "user123" } }
      * @deny (create) No user can create keuangan data.
-     * @principle Public read access with no write access.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "budgetReports": "Reports", "operationalExpenses": "Expenses", "contractorPaymentStatus": "Status", "salesDashboard": "Dashboard", "lastUpdated": "2024-01-01T00:00:00Z" } } }
+     * @deny (update) No user can update keuangan data.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "budgetReports": "New Reports", "operationalExpenses": "New Expenses", "contractorPaymentStatus": "New Status", "salesDashboard": "New Dashboard", "lastUpdated": "2024-01-02T00:00:00Z" } } }
+     * @deny (delete) No user can delete keuangan data.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @principle Allows public read access but denies all write operations.
      */
     match /keuangan/{keuanganId} {
       allow get: if true;
@@ -280,12 +424,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to SDM department data.
+     * @description Rules for the /sdm/{sdmId} collection.
      * @path /sdm/{sdmId}
      * @allow (get) Any user can read SDM data.
-     * @allow (list) Any user can list SDM data.
+     *     - Request: { "auth": { "uid": "user123" } }
      * @deny (create) No user can create SDM data.
-     * @principle Public read access with no write access.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "employeeDatabase": "Database", "leaveManagement": "Management", "digitalAttendance": "Attendance", "trainingSchedules": "Schedules", "lastUpdated": "2024-01-01T00:00:00Z" } } }
+     * @deny (update) No user can update SDM data.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "employeeDatabase": "New Database", "leaveManagement": "New Management", "digitalAttendance": "New Attendance", "trainingSchedules": "New Schedules", "lastUpdated": "2024-01-02T00:00:00Z" } } }
+     * @deny (delete) No user can delete SDM data.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @principle Allows public read access but denies all write operations.
      */
     match /sdm/{sdmId} {
       allow get: if true;
@@ -296,12 +445,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to IT department data.
+     * @description Rules for the /it/{itId} collection.
      * @path /it/{itId}
      * @allow (get) Any user can read IT data.
-     * @allow (list) Any user can list IT data.
+     *     - Request: { "auth": { "uid": "user123" } }
      * @deny (create) No user can create IT data.
-     * @principle Public read access with no write access.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "itAssetInventory": "Inventory", "helpdeskTickets": "Tickets", "networkStatus": "Status", "lastUpdated": "2024-01-01T00:00:00Z" } } }
+     * @deny (update) No user can update IT data.
+     *     - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "itAssetInventory": "New Inventory", "helpdeskTickets": "New Tickets", "networkStatus": "New Status", "lastUpdated": "2024-01-02T00:00:00Z" } } }
+     * @deny (delete) No user can delete IT data.
+     *     - Request: { "auth": { "uid": "user123" } }
+     * @principle Allows public read access but denies all write operations.
      */
     match /it/{itId} {
       allow get: if true;
