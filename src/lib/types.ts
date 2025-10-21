@@ -24,3 +24,14 @@ export type LeaveRequest = {
   requestDate: string;
   status: 'pending' | 'approved' | 'rejected';
 };
+
+export type HelpdeskTicket = {
+  id: string;
+  ticketId: string;
+  subject: string;
+  priority: 'Low' | 'Medium' | 'High';
+  status: 'Open' | 'In Progress' | 'Closed';
+  userId: string;
+  userEmail: string;
+  createdAt: string;
+};

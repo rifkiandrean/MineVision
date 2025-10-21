@@ -1,0 +1,117 @@
+
+'use client';
+
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
+import { createTicket, type FormState } from './actions';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection } from 'firebase/firestore';
+
+const initialState: FormState = {
+  message: '',
+};
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending} className="w-full bg-primary">
+      {pending ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Submitting...
+        </>
+      ) : (
+        'Submit Ticket'
+      )}
+    </Button>
+  );
+}
+
+interface TicketFormProps {
+    onTicketCreated: () => void;
+}
+
+export function TicketForm({ onTicketCreated }: TicketFormProps) {
+  const { user, firestore } = useFirebase();
+  const [state, formAction] = useActionState(createTicket, initialState);
+  const [priority, setPriority] = useState('Medium');
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (state.message.startsWith('Error')) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Create Ticket',
+        description: state.message,
+      });
+    } else if (state.data && firestore) {
+      // Data is valid, now save it from the client
+      const ticketsCollection = collection(firestore, 'helpdeskTickets');
+      const newTicket = {
+        ...state.data,
+        userId: user?.uid || 'unknown',
+        userEmail: user?.email || 'unknown',
+        status: 'Open' as const,
+        createdAt: new Date().toISOString(),
+        ticketId: Date.now().toString().slice(-6) // Simple sequential-like ID
+      };
+      
+      addDocumentNonBlocking(ticketsCollection, newTicket);
+      
+      toast({
+        title: 'Ticket Submitted',
+        description: 'Your helpdesk ticket has been successfully created.',
+      });
+
+      // Close the dialog
+      onTicketCreated();
+    }
+  }, [state, toast, firestore, user, onTicketCreated]);
+
+  return (
+    <form action={formAction} className="space-y-4 pt-4">
+       <div className="space-y-2">
+        <Label htmlFor="subject">Subject</Label>
+        <Textarea
+          id="subject"
+          name="subject"
+          placeholder="e.g., Unable to connect to network printer"
+          rows={3}
+          required
+        />
+        {state.errors?.subject && <p className="text-sm text-destructive">{state.errors.subject}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="priority">Priority</Label>
+        <input type="hidden" name="priority" value={priority} />
+        <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger id="priority">
+                <SelectValue placeholder="Select a priority" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="Low">Low</SelectItem>
+                <SelectItem value="Medium">Medium</SelectItem>
+                <SelectItem value="High">High</SelectItem>
+            </SelectContent>
+        </Select>
+        {state.errors?.priority && <p className="text-sm text-destructive">{state.errors.priority}</p>}
+      </div>
+      
+      <SubmitButton />
+    </form>
+  );
+}

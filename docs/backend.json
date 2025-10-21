@@ -442,6 +442,47 @@
           }
         },
         "required": ["userId", "permissions"]
+    },
+    "HelpdeskTicket": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "HelpdeskTicket",
+      "type": "object",
+      "description": "Represents a helpdesk ticket submitted by a user.",
+      "properties": {
+        "ticketId": {
+          "type": "string",
+          "description": "A user-friendly, sequential ticket ID."
+        },
+        "subject": {
+          "type": "string",
+          "description": "The subject or title of the ticket."
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High"],
+          "description": "The priority level of the ticket."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Open", "In Progress", "Closed"],
+          "description": "The current status of the ticket."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who submitted the ticket."
+        },
+        "userEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "The email of the user who submitted the ticket."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the ticket was created."
+        }
+      },
+      "required": ["ticketId", "subject", "priority", "status", "userId", "userEmail", "createdAt"]
     }
   },
   "auth": {
@@ -514,6 +555,14 @@
           "entityName": "UserPermissions",
           "schema": { "$ref": "#/backend/entities/UserPermissions" },
           "description": "Stores permissions for each user."
+        }
+      },
+      {
+        "path": "/helpdeskTickets/{ticketId}",
+        "definition": {
+          "entityName": "HelpdeskTicket",
+          "schema": { "$ref": "#/backend/entities/HelpdeskTicket" },
+          "description": "Stores all helpdesk support tickets."
         }
       },
       {
@@ -629,6 +678,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `users` collection is added to store user account information."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `users` collection is added to store user account information. A `helpdeskTickets` collection is added to store helpdesk support tickets."
   }
 }
