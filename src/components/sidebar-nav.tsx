@@ -74,7 +74,7 @@ export default function SidebarNav() {
     router.push('/login');
   };
 
-  const isSuperAdmin = user?.uid === 'z18z4zzOExSE5EYf3dJf39Fdq0x1';
+  const isSuperAdmin = user?.email === 'rifkiandrean@gmail.com';
 
 
   return (

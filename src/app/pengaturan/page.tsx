@@ -96,7 +96,7 @@ export default function SettingsPage() {
   const [newUserDepartment, setNewUserDepartment] = useState('Staff');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  const isSuperAdmin = user?.uid === 'z18z4zzOExSE5EYf3dJf39Fdq0x1';
+  const isSuperAdmin = user?.email === 'rifkiandrean@gmail.com';
   const selectedUser = userAccounts?.find(acc => acc.id === selectedAccount);
   const selectedUserIsSuperAdmin = selectedUser?.department === 'Super Admin';
 
@@ -143,9 +143,14 @@ export default function SettingsPage() {
       if (!isUserLoading && !user) {
           router.push('/login');
       } else if (!isUserLoading && user && !isSuperAdmin) {
+          toast({
+            variant: 'destructive',
+            title: 'Akses Ditolak',
+            description: 'Anda tidak memiliki izin untuk mengakses halaman ini.',
+          });
           router.push('/');
       }
-  }, [user, isUserLoading, isSuperAdmin, router]);
+  }, [user, isUserLoading, isSuperAdmin, router, toast]);
 
 
   useEffect(() => {
