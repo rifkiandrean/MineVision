@@ -153,10 +153,15 @@ export function LeaveApprovalTable({ onPrint }: LeaveApprovalTableProps) {
                   </TableCell>
                 </TableRow>
               ))}
+              {requests?.length === 0 && !isLoading && (
+                <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                        Tidak ada permintaan cuti saat ini.
+                    </TableCell>
+                </TableRow>
+              )}
         </TableBody>
       </Table>
-       {requests?.length === 0 && !isLoading && (
-            <div className="text-center py-10 text-muted-foreground">
-                Tidak ada permintaan cuti saat ini.
-            </div>
-        
+    </div>
+  );
+}
