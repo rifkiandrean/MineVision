@@ -2,29 +2,27 @@
  * @fileoverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset enforces a mixed security model. User data is strictly controlled,
- * while departmental data is publicly readable. The user collection is owner-only,
- * ensuring users can only access their own profile data. Other data collections
- * such as KPI, Announcements, ProductionStatus, PaymentRequests, Budgets, LeaveRequests, UserPermissions,
- * HelpdeskTickets, Inventory, PurchaseRequestsSC, Shipments, Assets and MaintenanceTasks
- * are publicly readable but only writable by authenticated users.
+ * This ruleset enforces a combination of ownership-based access for user profiles
+ * and public read-only access for department-specific data. User documents
+ * are secured such that only the authenticated user can read/write their own
+ * profile. Department data (Produksi, Geologi, etc.) is publicly readable,
+ * reflecting a design decision to make this information broadly accessible.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information. Access is restricted to the
- *   user with the matching userId.
- * - /kpi/{kpiId}: Stores Key Performance Indicators data.
- * - /announcements/{announcementId}: Stores announcements for the dashboard.
+ * - /users/{userId}: Stores individual user profiles.
+ * - /kpi/{kpiId}: Stores Key Performance Indicator (KPI) data.
+ * - /announcements/{announcementId}: Stores global announcement data.
  * - /productionStatus/{statusId}: Stores real-time production status data.
- * - /paymentRequests/{requestId}: Stores payment requests.
- * - /budgets/{budgetId}: Stores budget information.
+ * - /paymentRequests/{requestId}: Stores payment approval requests.
+ * - /budgets/{budgetId}: Stores budget vs. actual spending data.
  * - /leaveRequests/{requestId}: Stores employee leave requests.
- * - /userPermissions/{userId}: Stores user permissions.
- * - /helpdeskTickets/{ticketId}: Stores helpdesk tickets.
+ * - /userPermissions/{userId}: Stores permissions for each user.
+ * - /helpdeskTickets/{ticketId}: Stores helpdesk support tickets.
  * - /inventory/{itemId}: Stores supply chain inventory items.
  * - /purchaseRequestsSC/{prId}: Stores supply chain purchase requests.
- * - /shipments/{shipmentId}: Stores shipment data.
- * - /assets/{assetId}: Stores asset information.
- * - /maintenanceTasks/{taskId}: Stores maintenance task information.
+ * - /shipments/{shipmentId}: Stores shipment and logistics data.
+ * - /assets/{assetId}: Stores company asset information.
+ * - /maintenanceTasks/{taskId}: Stores all maintenance tasks and history.
  * - /produksi/{produksiId}: Stores produksi department data.
  * - /geologi/{geologiId}: Stores geologi department data.
  * - /pengolahan/{pengolahanId}: Stores pengolahan department data.
@@ -34,343 +32,295 @@
  * - /it/{itId}: Stores IT department data.
  *
  * Key Security Decisions:
- * - Listing users is denied to prevent unauthorized data access.
- * - Departmental data (produksi, geologi, pengolahan, k3l, keuangan, sdm, it)
- *   is publicly readable to facilitate easy access and display on the dashboard.
- * - All write operations require user authentication (`isSignedIn()`).
+ * - User Listing Denied: Listing all user documents is explicitly denied to protect user privacy.
+ * - Public Read-Only Department Data: Data under /produksi, /geologi, etc., is publicly readable. Write access is denied.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the user is signed in.
-     * @path N/A
-     * @allow N/A
-     * @deny N/A
-     * @principle Authentication check.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the requested userId matches the authenticated user's ID.
-     * @path N/A
-     * @allow N/A
-     * @deny N/A
-     * @principle Authorization check.
-     */
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    /**
-     * @description Checks if the requested userId matches the authenticated user's ID and the resource exists.
-     * @path N/A
-     * @allow N/A
-     * @deny N/A
-     * @principle Authorization and existence check.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Rules for user documents.
+     * @description Manages access to user profile data.
      * @path /users/{userId}
-     * @allow (create) User with uid 'user123' can create their own document at /users/user123.
-     * @deny (create) User with uid 'user123' cannot create a document at /users/user456.
-     * @allow (get) User with uid 'user123' can read their own document at /users/user123.
-     * @deny (get) User with uid 'user123' cannot read another user's document at /users/user456.
-     * @principle Enforces document ownership for reads and writes.
+     * @allow (create) Authenticated user can create their own profile.
+     * @allow (get, update, delete) Authenticated user can access their own profile.
+     * @deny (create, get, update, delete) Any operation by a different user.
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // Listing users is not permitted.
-      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == request.auth.uid;
       allow update: if isExistingOwner(userId) && request.resource.data.uid == resource.data.uid;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for KPI documents.
+     * @description Manages access to KPI data.
      * @path /kpi/{kpiId}
-     * @allow (get) Any user can read KPI data.
-     * @deny (create) Anonymous user cannot create KPI data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read KPI data.
+     * @deny (create, update, delete) No one can write KPI data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /kpi/{kpiId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for Announcement documents.
+     * @description Manages access to announcement data.
      * @path /announcements/{announcementId}
-     * @allow (get) Any user can read announcement data.
-     * @deny (create) Anonymous user cannot create announcement data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read announcement data.
+     * @deny (create, update, delete) No one can write announcement data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /announcements/{announcementId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for ProductionStatus documents.
+     * @description Manages access to production status data.
      * @path /productionStatus/{statusId}
-     * @allow (get) Any user can read production status data.
-     * @deny (create) Anonymous user cannot create production status data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read production status data.
+     * @deny (create, update, delete) No one can write production status data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /productionStatus/{statusId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for PaymentRequest documents.
+     * @description Manages access to payment requests data.
      * @path /paymentRequests/{requestId}
-     * @allow (get) Any user can read payment request data.
-     * @deny (create) Anonymous user cannot create payment request data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read payment requests data.
+     * @deny (create, update, delete) No one can write payment requests data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /paymentRequests/{requestId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for Budget documents.
+     * @description Manages access to budget data.
      * @path /budgets/{budgetId}
-     * @allow (get) Any user can read budget data.
-     * @deny (create) Anonymous user cannot create budget data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read budget data.
+     * @deny (create, update, delete) No one can write budget data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /budgets/{budgetId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for LeaveRequest documents.
+     * @description Manages access to leave request data.
      * @path /leaveRequests/{requestId}
-     * @allow (get) Any user can read leave request data.
-     * @deny (create) Anonymous user cannot create leave request data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read leave request data.
+     * @deny (create, update, delete) No one can write leave request data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /leaveRequests/{requestId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for UserPermissions documents.
+     * @description Manages access to user permissions data.
      * @path /userPermissions/{userId}
-     * @allow (get) Any user can read user permissions data.
-     * @deny (create) Anonymous user cannot create user permissions data.
-     * @principle Public read, authenticated write.
+     * @allow (create) Authenticated user can create their own permissions document.
+     * @allow (get, update, delete) Authenticated user can access their own permissions document.
+     * @deny (create, get, update, delete) Any operation by a different user.
+     * @principle Enforces document ownership for user permissions.
      */
     match /userPermissions/{userId} {
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+        function isSignedIn() {
+          return request.auth != null;
+        }
+
+        function isOwner(userId) {
+          return request.auth.uid == userId;
+        }
+
+        function isExistingOwner(userId) {
+          return isOwner(userId) && resource != null;
+        }
+
+        allow get: if isSignedIn() && isOwner(userId);
+        allow list: if false;
+        allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == request.auth.uid;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for HelpdeskTicket documents.
+     * @description Manages access to helpdesk tickets data.
      * @path /helpdeskTickets/{ticketId}
-     * @allow (get) Any user can read helpdesk ticket data.
-     * @deny (create) Anonymous user cannot create helpdesk ticket data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read helpdesk tickets data.
+     * @deny (create, update, delete) No one can write helpdesk tickets data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /helpdeskTickets/{ticketId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for InventoryItem documents.
+     * @description Manages access to inventory data.
      * @path /inventory/{itemId}
-     * @allow (get) Any user can read inventory item data.
-     * @deny (create) Anonymous user cannot create inventory item data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read inventory data.
+     * @deny (create, update, delete) No one can write inventory data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /inventory/{itemId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for PurchaseRequestSC documents.
+     * @description Manages access to purchase request data.
      * @path /purchaseRequestsSC/{prId}
-     * @allow (get) Any user can read purchase request data.
-     * @deny (create) Anonymous user cannot create purchase request data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read purchase request data.
+     * @deny (create, update, delete) No one can write purchase request data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /purchaseRequestsSC/{prId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for Shipment documents.
+     * @description Manages access to shipment data.
      * @path /shipments/{shipmentId}
-     * @allow (get) Any user can read shipment data.
-     * @deny (create) Anonymous user cannot create shipment data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read shipment data.
+     * @deny (create, update, delete) No one can write shipment data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /shipments/{shipmentId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for Asset documents.
+     * @description Manages access to asset data.
      * @path /assets/{assetId}
-     * @allow (get) Any user can read asset data.
-     * @deny (create) Anonymous user cannot create asset data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read asset data.
+     * @deny (create, update, delete) No one can write asset data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /assets/{assetId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for MaintenanceTask documents.
+     * @description Manages access to maintenance task data.
      * @path /maintenanceTasks/{taskId}
-     * @allow (get) Any user can read maintenance task data.
-     * @deny (create) Anonymous user cannot create maintenance task data.
-     * @principle Public read, authenticated write.
+     * @allow (get, list) Any user can read maintenance task data.
+     * @deny (create, update, delete) No one can write maintenance task data. // TODO: Add owner validation once the schema is updated with an ownership field.
+     * @principle Public read access with no write access.
      */
     match /maintenanceTasks/{taskId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
-    /**
-     * @description Rules for Produksi documents.
-     * @path /produksi/{produksiId}
-     * @allow (get) Any user can read produksi data.
-     * @deny (create) Anonymous user cannot create produksi data.
-     * @principle Public read, authenticated write.
-     */
+     /**
+      * @description Grants public read access to Produksi data.
+      * @path /produksi/{produksiId}
+      * @allow (get, list) Any user can read Produksi data.
+      * @deny (create, update, delete) No one can write Produksi data.
+      * @principle Public read access with no write access.
+      */
     match /produksi/{produksiId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for Geologi documents.
-     * @path /geologi/{geologiId}
-     * @allow (get) Any user can read geologi data.
-     * @deny (create) Anonymous user cannot create geologi data.
-     * @principle Public read, authenticated write.
-     */
+      * @description Grants public read access to Geologi data.
+      * @path /geologi/{geologiId}
+      * @allow (get, list) Any user can read Geologi data.
+      * @deny (create, update, delete) No one can write Geologi data.
+      * @principle Public read access with no write access.
+      */
     match /geologi/{geologiId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for Pengolahan documents.
-     * @path /pengolahan/{pengolahanId}
-     * @allow (get) Any user can read pengolahan data.
-     * @deny (create) Anonymous user cannot create pengolahan data.
-     * @principle Public read, authenticated write.
-     */
+      * @description Grants public read access to Pengolahan data.
+      * @path /pengolahan/{pengolahanId}
+      * @allow (get, list) Any user can read Pengolahan data.
+      * @deny (create, update, delete) No one can write Pengolahan data.
+      * @principle Public read access with no write access.
+      */
     match /pengolahan/{pengolahanId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for K3L documents.
-     * @path /k3l/{k3lId}
-     * @allow (get) Any user can read K3L data.
-     * @deny (create) Anonymous user cannot create K3L data.
-     * @principle Public read, authenticated write.
-     */
+      * @description Grants public read access to K3L data.
+      * @path /k3l/{k3lId}
+      * @allow (get, list) Any user can read K3L data.
+      * @deny (create, update, delete) No one can write K3L data.
+      * @principle Public read access with no write access.
+      */
     match /k3l/{k3lId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for Keuangan documents.
-     * @path /keuangan/{keuanganId}
-     * @allow (get) Any user can read keuangan data.
-     * @deny (create) Anonymous user cannot create keuangan data.
-     * @principle Public read, authenticated write.
-     */
+      * @description Grants public read access to Keuangan data.
+      * @path /keuangan/{keuanganId}
+      * @allow (get, list) Any user can read Keuangan data.
+      * @deny (create, update, delete) No one can write Keuangan data.
+      * @principle Public read access with no write access.
+      */
     match /keuangan/{keuanganId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for SDM documents.
-     * @path /sdm/{sdmId}
-     * @allow (get) Any user can read SDM data.
-     * @deny (create) Anonymous user cannot create SDM data.
-     * @principle Public read, authenticated write.
-     */
+      * @description Grants public read access to SDM data.
+      * @path /sdm/{sdmId}
+      * @allow (get, list) Any user can read SDM data.
+      * @deny (create, update, delete) No one can write SDM data.
+      * @principle Public read access with no write access.
+      */
     match /sdm/{sdmId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Rules for IT documents.
-     * @path /it/{itId}
-     * @allow (get) Any user can read IT data.
-     * @deny (create) Anonymous user cannot create IT data.
-     * @principle Public read, authenticated write.
-     */
+      * @description Grants public read access to IT data.
+      * @path /it/{itId}
+      * @allow (get, list) Any user can read IT data.
+      * @deny (create, update, delete) No one can write IT data.
+      * @principle Public read access with no write access.
+      */
     match /it/{itId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
   }
 }
