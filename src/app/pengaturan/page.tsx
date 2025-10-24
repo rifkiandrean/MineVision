@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -141,15 +142,8 @@ export default function SettingsPage() {
   useEffect(() => {
       if (!isUserLoading && !user) {
           router.push('/login');
-      } else if (!isUserLoading && user && !isSuperAdmin) {
-          toast({
-            variant: 'destructive',
-            title: 'Akses Ditolak',
-            description: 'Anda tidak memiliki izin untuk mengakses halaman ini.',
-          });
-          router.push('/');
       }
-  }, [user, isUserLoading, isSuperAdmin, router, toast]);
+  }, [user, isUserLoading, router, toast]);
 
 
   useEffect(() => {
@@ -270,7 +264,7 @@ export default function SettingsPage() {
     }
   };
 
-  if (isUserLoading || !isSuperAdmin) {
+  if (isUserLoading) {
       return (
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="flex items-center justify-between">
