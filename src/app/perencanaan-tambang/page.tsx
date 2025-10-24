@@ -35,7 +35,7 @@ const designVersions = [
 const scheduleTasks = [
     { period: 'Q4 2023', target: '2.5M BCM', focus: 'Overburden Removal Blok Barat' },
     { period: 'Q1 2024', target: '1.2M Ton', focus: 'Coal Getting Seam-A' },
-    { period: 'Q2 2024', target: '3.0M BCM', focus 'Overburden Removal Blok Timur' },
+    { period: 'Q2 2024', target: '3.0M BCM', focus: 'Overburden Removal Blok Timur' },
 ];
 
 
