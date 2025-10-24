@@ -1,4 +1,7 @@
 
+'use client';
+
+import { useState } from 'react';
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +23,20 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Package, ShoppingCart, Ship, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { PurchaseRequestForm } from './request-form';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
+import type { InventoryItem, PurchaseRequestSC, Shipment } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 const inventoryItems = [
   { name: 'ANFO', category: 'Bahan Peledak', stock: 5000, unit: 'Kg', location: 'Gudang Peledak 1', usage: 75 },
@@ -28,24 +45,29 @@ const inventoryItems = [
   { name: 'Ban Dump Truck', category: 'Suku Cadang', stock: 12, unit: 'Pcs', location: 'Gudang Ban', usage: 20 },
 ];
 
-const purchaseRequests = [
-    { id: 'PR-2023-0125', item: 'Bearing Roda DT-101', dept: 'Produksi', date: '2023-11-03', status: 'Approved' },
-    { id: 'PR-2023-0126', item: 'Kabel Listrik 500m', dept: 'Pengolahan', date: '2023-11-04', status: 'Ordered' },
-    { id: 'PR-2023-0127', item: 'APAR 25 Kg', dept: 'K3L', date: '2023-11-05', status: 'Pending' },
-];
-
-const shipments = [
+const shipmentsData = [
     { id: 'MV-008', vessel: 'MV. Jaya Abadi', cargo: 'Batubara 6300 GAR', quantity: 50000, dest: 'Cigading', status: 'In Transit' },
     { id: 'BG-102', vessel: 'BG. Sumber Rejeki', cargo: 'Batubara 5800 GAR', quantity: 8000, dest: 'PLTU Suralaya', status: 'Loading' },
     { id: 'MV-007', vessel: 'MV. Samudera Biru', cargo: 'Batubara 6300 GAR', quantity: 55000, dest: 'Tanjung Priok', status: 'Discharged' },
 ];
 
 export default function RantaiPasokanPage() {
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const { firestore } = useFirebase();
+
+    const prQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'purchaseRequestsSC'), orderBy('requestDate', 'desc'));
+    }, [firestore]);
+
+    const { data: purchaseRequests, isLoading: prLoading } = useCollection<PurchaseRequestSC>(prQuery);
+
 
     const getStatusClass = (status: string) => {
         switch (status) {
             case 'Approved':
             case 'Discharged':
+            case 'Received':
                 return 'bg-green-500/80 text-green-foreground';
             case 'Pending':
             case 'Loading':
@@ -62,10 +84,23 @@ export default function RantaiPasokanPage() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
       <PageHeader title="Logistik & Rantai Pasokan">
-        <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Buat Permintaan
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Buat Permintaan
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Buat Permintaan Pembelian Baru</DialogTitle>
+              <DialogDescription>
+                Isi formulir di bawah untuk membuat PR baru.
+              </DialogDescription>
+            </DialogHeader>
+            <PurchaseRequestForm onRequestCreated={() => setIsDialogOpen(false)} />
+          </DialogContent>
+        </Dialog>
       </PageHeader>
       
       <div className="grid gap-4 md:gap-8">
@@ -124,19 +159,34 @@ export default function RantaiPasokanPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {purchaseRequests.map(pr => (
-                                <TableRow key={pr.id}>
-                                    <TableCell className="font-medium">{pr.id}</TableCell>
-                                    <TableCell>{pr.item}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="secondary" className={cn(getStatusClass(pr.status))}>
-                                            {pr.status}
-                                        </Badge>
-                                    </TableCell>
+                            {prLoading ? (
+                                Array.from({ length: 3 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                                 </TableRow>
-                            ))}
+                                ))
+                            ) : (
+                                purchaseRequests?.map(pr => (
+                                    <TableRow key={pr.id}>
+                                        <TableCell className="font-medium">#{pr.prId}</TableCell>
+                                        <TableCell>{pr.item}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="secondary" className={cn(getStatusClass(pr.status))}>
+                                                {pr.status}
+                                            </Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
                         </TableBody>
                     </Table>
+                    {!prLoading && purchaseRequests?.length === 0 && (
+                        <div className="text-center py-10 text-muted-foreground">
+                            Tidak ada permintaan pembelian.
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -158,7 +208,7 @@ export default function RantaiPasokanPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {shipments.map(shipment => (
+                            {shipmentsData.map(shipment => (
                                 <TableRow key={shipment.id}>
                                     <TableCell className="font-medium">{shipment.vessel}</TableCell>
                                     <TableCell>{shipment.quantity.toLocaleString('id-ID')}</TableCell>

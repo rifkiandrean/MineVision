@@ -30,4 +30,35 @@ export type HelpdeskTicket = {
   ticketId: string;
   subject: string;
   priority: 'Low' | 'Medium' | 'High';
-  status: 'Open' | 'In Progress' | '
+  status: 'Open' | 'In Progress' | 'Closed';
+  userEmail: string;
+};
+
+export type InventoryItem = {
+  id: string;
+  name: string;
+  category: string;
+  stock: number;
+  unit: string;
+  location: string;
+}
+
+export type PurchaseRequestSC = {
+    id: string;
+    prId: string;
+    item: string;
+    quantity: number;
+    department: string;
+    requestDate: string;
+    status: 'Pending' | 'Approved' | 'Ordered' | 'Received';
+}
+
+export type Shipment = {
+    id: string;
+    shipmentId: string;
+    vesselName: string;
+    cargoType: string;
+    quantity: number;
+    destinationPort: string;
+    status: 'Scheduled' | 'Loading' | 'In Transit' | 'Discharged';
+}
