@@ -14,7 +14,8 @@
     "seed:assets": "node --loader ts-node/esm scripts/seed-assets.mjs",
     "seed:ledger": "node --loader ts-node/esm scripts/seed-ledger.mjs",
     "seed:invoices": "node --loader ts-node/esm scripts/seed-invoices.mjs",
-    "seed:bills": "node --loader ts-node/esm scripts/seed-bills.mjs"
+    "seed:bills": "node --loader ts-node/esm scripts/seed-bills.mjs",
+    "seed:bank": "node --loader ts-node/esm scripts/seed-bank-accounts.mjs"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",
@@ -72,3 +73,5 @@
     "typescript": "^5"
   }
 }
+
+    

@@ -25,7 +25,7 @@ import {
 import BudgetChart from '@/components/budget-chart';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { Budget, Invoice, Bill } from '@/lib/types';
+import type { Budget, Invoice, Bill, BankAccount } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function KeuanganPage() {
@@ -46,15 +46,26 @@ export default function KeuanganPage() {
     return query(collection(firestore, 'bills'), where('status', '==', 'Unpaid'));
   }, [firestore]);
 
+  const bankAccountsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'bankAccounts'));
+  }, [firestore]);
+
 
   const { data: budgets, isLoading: budgetsLoading } = useCollection<Budget>(budgetsQuery);
   const { data: openInvoices, isLoading: invoicesLoading } = useCollection<Invoice>(invoicesQuery);
   const { data: unpaidBills, isLoading: billsLoading } = useCollection<Bill>(billsQuery);
+  const { data: bankAccounts, isLoading: bankAccountsLoading } = useCollection<BankAccount>(bankAccountsQuery);
+
 
   const totalReceivables = openInvoices?.reduce((sum, inv) => sum + inv.amount, 0) || 0;
   const totalPayables = unpaidBills?.reduce((sum, bill) => sum + bill.amount, 0) || 0;
+  const totalBankBalance = bankAccounts?.reduce((sum, acc) => sum + acc.balance, 0) || 0;
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, compact = false) => {
+     if (compact && amount >= 1_000_000_000) {
+      return `Rp ${(amount / 1_000_000_000).toFixed(1)} Miliar`;
+    }
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
   }
 
@@ -142,7 +153,8 @@ export default function KeuanganPage() {
                   </CardContent>
               </Card>
             </Link>
-             <Card>
+             <Link href="/administrasi/keuangan/kas-dan-bank" className="block">
+              <Card className="h-full hover:bg-muted/50 transition-colors">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Landmark className="h-5 w-5 text-primary"/>
@@ -151,10 +163,11 @@ export default function KeuanganPage() {
                     <CardDescription>Total saldo kas dan bank.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-2xl font-bold">Rp 25.1 Miliar</p>
-                    <p className="text-xs text-muted-foreground">Di 5 rekening bank</p>
+                    {bankAccountsLoading ? <Skeleton className="h-8 w-40" /> : <p className="text-2xl font-bold">{formatCurrency(totalBankBalance, true)}</p>}
+                    {bankAccountsLoading ? <Skeleton className="h-4 w-32 mt-1" /> : <p className="text-xs text-muted-foreground">Di {bankAccounts?.length || 0} rekening bank</p>}
                 </CardContent>
-            </Card>
+              </Card>
+            </Link>
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -175,3 +188,5 @@ export default function KeuanganPage() {
     </main>
   );
 }
+
+    

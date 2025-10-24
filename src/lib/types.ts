@@ -103,3 +103,13 @@ export type Bill = {
     dueDate: string; // YYYY-MM-DD
     status: 'Unpaid' | 'Paid' | 'Overdue';
 };
+
+export type BankAccount = {
+    id: string;
+    accountName: string;
+    bankName: string;
+    accountNumber: string;
+    balance: number;
+};
+
+    
