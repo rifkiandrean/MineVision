@@ -62,7 +62,7 @@ export function LeaveRequestForm() {
       const newRequest = {
         ...state.data,
         requestDate: new Date().toISOString(),
-        status: 'pending',
+        status: 'pending' as const,
       };
       
       addDocumentNonBlocking(leaveRequestsCollection, newRequest);

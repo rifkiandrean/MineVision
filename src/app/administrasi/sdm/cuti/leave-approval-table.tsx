@@ -2,7 +2,7 @@
 'use client';
 
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, doc } from 'firebase/firestore';
 import type { LeaveRequest } from '@/lib/types';
 import {
   Table,
@@ -42,11 +42,11 @@ export function LeaveApprovalTable({ onPrint }: LeaveApprovalTableProps) {
   const handleUpdateRequest = (id: string, status: 'approved' | 'rejected') => {
     if (!firestore) return;
     const docRef = doc(firestore, 'leaveRequests', id);
-    updateDocumentNonBlocking(docRef, { status })
+    updateDocumentNonBlocking(docRef, { status });
     toast({
         title: 'Status Updated',
         description: `Request has been ${status}.`
-    })
+    });
   };
 
   const statusColors: { [key: string]: string } = {
