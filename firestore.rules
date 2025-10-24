@@ -1,410 +1,250 @@
-/**
- * @file Overview
- * This ruleset enforces a combination of owner-only access for user-specific data and public read access with owner-only writes for other collections.
- *
- * Data Structure:
- * - /users/{userId}: Stores user account information. Accessible only by the user themselves (Ownership).
- * - /kpi/{kpiId}: Stores KPI data. Public read access, owner-only writes.
- * - /announcements/{announcementId}: Stores announcement data. Public read access, owner-only writes.
- * - /productionStatus/{statusId}: Stores production status data. Public read access, owner-only writes.
- * - /paymentRequests/{requestId}: Stores payment approval requests. Public read access, owner-only writes.
- * - /budgets/{budgetId}: Stores budget data. Public read access, owner-only writes.
- * - /leaveRequests/{requestId}: Stores leave requests. Public read access, owner-only writes.
- * - /userPermissions/{userId}: Stores user-specific permissions. Accessible only by the user themselves (Ownership).
- * - /helpdeskTickets/{ticketId}: Stores helpdesk tickets. Public read access, owner-only writes.
- * - /inventory/{itemId}: Stores inventory data. Public read access, owner-only writes.
- * - /purchaseRequestsSC/{prId}: Stores purchase requests. Public read access, owner-only writes.
- * - /shipments/{shipmentId}: Stores shipment data. Public read access, owner-only writes.
- * - /assets/{assetId}: Stores asset data. Public read access, owner-only writes.
- * - /maintenanceTasks/{taskId}: Stores maintenance task data. Public read access, owner-only writes.
- * - /generalLedger/{entryId}: Stores general ledger entries. Public read access, owner-only writes.
- * - /invoices/{invoiceId}: Stores invoice data. Public read access, owner-only writes.
- * - /bills/{billId}: Stores bill data. Public read access, owner-only writes.
- * - /produksi/{produksiId}: Stores produksi department data. Public read access.
- * - /geologi/{geologiId}: Stores geologi department data. Public read access.
- * - /pengolahan/{pengolahanId}: Stores pengolahan department data. Public read access.
- * - /k3l/{k3lId}: Stores K3L department data. Public read access.
- * - /keuangan/{keuanganId}: Stores keuangan department data. Public read access.
- * - /sdm/{sdmId}: Stores SDM department data. Public read access.
- * - /it/{itId}: Stores IT department data. Public read access.
- *
- * Key Security Decisions:
- * - All write operations (create, update, delete) require an authenticated user.
- * - Listing of documents is allowed only for the owner in the /users/{userId} collection. Other collections are publicly listable, but writes are restricted to authenticated users.
- * - Data validation is minimal in this prototyping phase, focusing on authorization and relational integrity.
- * - Public read access is enabled for the dashboard-related collections (`kpi`, `announcements`, `productionStatus`) as the application is read-only.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Manages user account information.
-     * @path /users/{userId}
-     * @allow (create) if request.auth.uid == userId
-     * @allow (get, list, update, delete) if request.auth.uid == userId
-     * @deny (create) if request.auth == null
-     * @deny (get, list, update, delete) if request.auth == null
-     * @principle Enforces document ownership for reads and writes
+     * @description Checks if the request is made by the owner of the user document.
+     * @param {string} userId The user ID to compare against the request's authentication UID.
+     * @returns {boolean} True if the user is signed in and the UID matches the userId, false otherwise.
      */
-    match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
     /**
-     * @description Stores KPI data for the main dashboard.
+     * @description Checks if a user is signed in.
+     * @returns {boolean} True if the user is signed in, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Rules for user documents.
+     * @path /users/{userId}
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    /**
+     * @description Rules for KPI documents.
      * @path /kpi/{kpiId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /kpi/{kpiId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores announcement data for the main dashboard.
+     * @description Rules for announcement documents.
      * @path /announcements/{announcementId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /announcements/{announcementId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores production status data for the main dashboard.
+     * @description Rules for production status documents.
      * @path /productionStatus/{statusId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /productionStatus/{statusId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores payment approval requests.
+     * @description Rules for payment request documents.
      * @path /paymentRequests/{requestId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /paymentRequests/{requestId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores budget data.
+     * @description Rules for budget documents.
      * @path /budgets/{budgetId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /budgets/{budgetId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores all employee leave requests.
+     * @description Rules for leave request documents.
      * @path /leaveRequests/{requestId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /leaveRequests/{requestId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores permissions for each user.
+     * @description Rules for user permissions documents.
      * @path /userPermissions/{userId}
-     * @allow (create) if request.auth.uid == userId
-     * @allow (get, list, update, delete) if request.auth.uid == userId
-     * @deny (create) if request.auth == null
-     * @deny (get, list, update, delete) if request.auth == null
-     * @principle Enforces document ownership for reads and writes
      */
     match /userPermissions/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores all helpdesk support tickets.
+     * @description Rules for helpdesk ticket documents.
      * @path /helpdeskTickets/{ticketId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /helpdeskTickets/{ticketId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores supply chain inventory items.
+     * @description Rules for inventory item documents.
      * @path /inventory/{itemId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /inventory/{itemId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores supply chain purchase requests.
+     * @description Rules for purchase request documents in the supply chain.
      * @path /purchaseRequestsSC/{prId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /purchaseRequestsSC/{prId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores shipment and logistics data.
+     * @description Rules for shipment documents.
      * @path /shipments/{shipmentId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /shipments/{shipmentId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores company asset information.
+     * @description Rules for asset documents.
      * @path /assets/{assetId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /assets/{assetId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores all maintenance tasks and history.
+     * @description Rules for maintenance task documents.
      * @path /maintenanceTasks/{taskId}
-     * @allow (get, list) public read access
-     * @allow (create) if isSignedIn()
-     * @allow (update, delete) if isSignedIn() && resource != null
-     * @deny (create, update, delete) if !isSignedIn()
-     * @principle Public read, owner-only writes
      */
     match /maintenanceTasks/{taskId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
-     /**
-      * @description Stores all general ledger journal entries.
-      * @path /generalLedger/{entryId}
-      * @allow (get, list) public read access
-      * @allow (create) if isSignedIn()
-      * @allow (update, delete) if isSignedIn() && resource != null
-      * @deny (create, update, delete) if !isSignedIn()
-      * @principle Public read, owner-only writes
-      */
+        /**
+     * @description Rules for General Ledger Entry documents.
+     * @path /generalLedger/{entryId}
+     */
     match /generalLedger/{entryId} {
         allow get, list: if true;
-        allow create: if isSignedIn();
-        allow update: if isSignedIn() && resource != null;
-        allow delete: if isSignedIn() && resource != null;
+        allow create, update, delete: if false;
     }
 
     /**
-      * @description Stores accounts receivable invoices.
-      * @path /invoices/{invoiceId}
-      * @allow (get, list) public read access
-      * @allow (create) if isSignedIn()
-      * @allow (update, delete) if isSignedIn() && resource != null
-      * @deny (create, update, delete) if !isSignedIn()
-      * @principle Public read, owner-only writes
-      */
+     * @description Rules for Invoice documents.
+     * @path /invoices/{invoiceId}
+     */
     match /invoices/{invoiceId} {
         allow get, list: if true;
-        allow create: if isSignedIn();
-        allow update: if isSignedIn() && resource != null;
-        allow delete: if isSignedIn() && resource != null;
+        allow create, update, delete: if false;
     }
 
     /**
-      * @description Stores accounts payable bills from vendors.
-      * @path /bills/{billId}
-      * @allow (get, list) public read access
-      * @allow (create) if isSignedIn()
-      * @allow (update, delete) if isSignedIn() && resource != null
-      * @deny (create, update, delete) if !isSignedIn()
-      * @principle Public read, owner-only writes
-      */
+     * @description Rules for Bill documents.
+     * @path /bills/{billId}
+     */
     match /bills/{billId} {
         allow get, list: if true;
-        allow create: if isSignedIn();
-        allow update: if isSignedIn() && resource != null;
-        allow delete: if isSignedIn() && resource != null;
+        allow create, update, delete: if false;
     }
+
     /**
-     * @description Stores produksi department data.
+     * @description Rules for Bank Account documents.
+     * @path /bankAccounts/{accountId}
+     */
+    match /bankAccounts/{accountId} {
+        allow get, list: if true;
+        allow create, update, delete: if false;
+    }
+
+        /**
+     * @description Rules for Produksi documents.
      * @path /produksi/{produksiId}
-     * @allow (get, list) public read access
-     * @deny (create, update, delete) all writes
-     * @principle Public read
      */
     match /produksi/{produksiId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
-    /**
-     * @description Stores geologi department data.
+        /**
+     * @description Rules for Geologi documents.
      * @path /geologi/{geologiId}
-     * @allow (get, list) public read access
-     * @deny (create, update, delete) all writes
-     * @principle Public read
      */
     match /geologi/{geologiId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores pengolahan department data.
+     * @description Rules for Pengolahan documents.
      * @path /pengolahan/{pengolahanId}
-     * @allow (get, list) public read access
-     * @deny (create, update, delete) all writes
-     * @principle Public read
      */
     match /pengolahan/{pengolahanId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores K3L department data.
+     * @description Rules for K3L documents.
      * @path /k3l/{k3lId}
-     * @allow (get, list) public read access
-     * @deny (create, update, delete) all writes
-     * @principle Public read
      */
     match /k3l/{k3lId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores keuangan department data.
+     * @description Rules for Keuangan documents.
      * @path /keuangan/{keuanganId}
-     * @allow (get, list) public read access
-     * @deny (create, update, delete) all writes
-     * @principle Public read
      */
     match /keuangan/{keuanganId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores SDM department data.
+     * @description Rules for SDM documents.
      * @path /sdm/{sdmId}
-     * @allow (get, list) public read access
-     * @deny (create, update, delete) all writes
-     * @principle Public read
      */
     match /sdm/{sdmId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
     /**
-     * @description Stores IT department data.
+     * @description Rules for IT documents.
      * @path /it/{itId}
-     * @allow (get, list) public read access
-     * @deny (create, update, delete) all writes
-     * @principle Public read
      */
     match /it/{itId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    function isSignedIn() {
-      return request.auth != null;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
   }
 }
