@@ -92,4 +92,10 @@ export default function GeologiPage() {
                         <TableCell>{data.calorific}</TableCell>
                     </TableRow>
                 ))}
-            </TableBody
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </main>
+  );
+}
