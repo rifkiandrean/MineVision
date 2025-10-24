@@ -560,6 +560,50 @@
         "downtimeHours": { "type": "number", "description": "Total hours the asset was down for this task." }
       },
       "required": ["taskId", "assetId", "type", "description", "status"]
+    },
+    "GeneralLedgerEntry": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "GeneralLedgerEntry",
+        "type": "object",
+        "description": "Represents a single entry in the general ledger.",
+        "properties": {
+            "date": { "type": "string", "format": "date-time" },
+            "account": { "type": "string" },
+            "description": { "type": "string" },
+            "debit": { "type": "number" },
+            "credit": { "type": "number" }
+        },
+        "required": ["date", "account", "debit", "credit"]
+    },
+    "Invoice": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Invoice",
+        "type": "object",
+        "description": "Represents an accounts receivable invoice sent to a customer.",
+        "properties": {
+            "invoiceId": { "type": "string" },
+            "customerName": { "type": "string" },
+            "amount": { "type": "number" },
+            "issueDate": { "type": "string", "format": "date" },
+            "dueDate": { "type": "string", "format": "date" },
+            "status": { "type": "string", "enum": ["Draft", "Sent", "Paid", "Overdue"] }
+        },
+        "required": ["invoiceId", "customerName", "amount", "issueDate", "dueDate", "status"]
+    },
+    "Bill": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Bill",
+        "type": "object",
+        "description": "Represents an accounts payable bill received from a vendor.",
+        "properties": {
+            "billId": { "type": "string" },
+            "vendorName": { "type": "string" },
+            "amount": { "type": "number" },
+            "billDate": { "type": "string", "format": "date" },
+            "dueDate": { "type": "string", "format": "date" },
+            "status": { "type": "string", "enum": ["Unpaid", "Paid", "Overdue"] }
+        },
+        "required": ["billId", "vendorName", "amount", "billDate", "dueDate", "status"]
     }
   },
   "auth": {
@@ -683,6 +727,30 @@
         }
       },
       {
+        "path": "/generalLedger/{entryId}",
+        "definition": {
+          "entityName": "GeneralLedgerEntry",
+          "schema": { "$ref": "#/backend/entities/GeneralLedgerEntry" },
+          "description": "Stores all general ledger journal entries."
+        }
+      },
+      {
+        "path": "/invoices/{invoiceId}",
+        "definition": {
+          "entityName": "Invoice",
+          "schema": { "$ref": "#/backend/entities/Invoice" },
+          "description": "Stores accounts receivable invoices."
+        }
+      },
+      {
+        "path": "/bills/{billId}",
+        "definition": {
+          "entityName": "Bill",
+          "schema": { "$ref": "#/backend/entities/Bill" },
+          "description": "Stores accounts payable bills from vendors."
+        }
+      },
+      {
         "path": "/produksi/{produksiId}",
         "definition": {
           "entityName": "Produksi",
@@ -795,6 +863,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module."
   }
 }
