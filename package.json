@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "seed:budgets": "node --loader ts-node/esm scripts/seed-budgets.mjs"
+    "seed:budgets": "node --loader ts-node/esm scripts/seed-budgets.mjs",
+    "seed:assets": "node --loader ts-node/esm scripts/seed-assets.mjs"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",
