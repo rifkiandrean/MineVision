@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -191,4 +192,13 @@ export default function Home() {
                       variant="outline"
                       className={statusColors[status.status]}
                     >
-                      {status.
+                      {status.status}
+                    </Badge>
+                  </div>
+                ))}
+          </CardContent>
+        </Card>
+      </div>
+    </main>
+  );
+}
