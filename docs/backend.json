@@ -483,6 +483,50 @@
         }
       },
       "required": ["ticketId", "subject", "priority", "status", "userId", "userEmail", "createdAt"]
+    },
+    "InventoryItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryItem",
+      "type": "object",
+      "description": "Represents an item in the supply chain inventory.",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the inventory item." },
+        "category": { "type": "string", "enum": ["Bahan Peledak", "Suku Cadang", "Bahan Bakar", "Lainnya"], "description": "Category of the item." },
+        "stock": { "type": "number", "description": "Current stock quantity." },
+        "unit": { "type": "string", "description": "Unit of measurement (e.g., Kg, Pcs, Liter)." },
+        "location": { "type": "string", "description": "Storage location of the item." }
+      },
+      "required": ["name", "category", "stock", "unit"]
+    },
+    "PurchaseRequestSC": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PurchaseRequestSC",
+      "type": "object",
+      "description": "Represents a purchase request in the supply chain.",
+      "properties": {
+        "prId": { "type": "string", "description": "Unique ID for the purchase request." },
+        "item": { "type": "string", "description": "Item being requested." },
+        "quantity": { "type": "number", "description": "Quantity requested." },
+        "department": { "type": "string", "description": "Requesting department." },
+        "requestDate": { "type": "string", "format": "date-time", "description": "Date of the request." },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Ordered", "Received"], "description": "Status of the request." }
+      },
+      "required": ["prId", "item", "quantity", "requestDate", "status"]
+    },
+    "Shipment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Shipment",
+      "type": "object",
+      "description": "Represents a material shipment.",
+      "properties": {
+        "shipmentId": { "type": "string", "description": "Unique ID for the shipment." },
+        "vesselName": { "type": "string", "description": "Name of the vessel." },
+        "cargoType": { "type": "string", "description": "Type of cargo being shipped." },
+        "quantity": { "type": "number", "description": "Quantity of cargo in metric tons." },
+        "destinationPort": { "type": "string", "description": "Destination port." },
+        "status": { "type": "string", "enum": ["Scheduled", "Loading", "In Transit", "Discharged"], "description": "Current status of the shipment." }
+      },
+      "required": ["shipmentId", "vesselName", "quantity", "status"]
     }
   },
   "auth": {
@@ -563,6 +607,30 @@
           "entityName": "HelpdeskTicket",
           "schema": { "$ref": "#/backend/entities/HelpdeskTicket" },
           "description": "Stores all helpdesk support tickets."
+        }
+      },
+      {
+        "path": "/inventory/{itemId}",
+        "definition": {
+          "entityName": "InventoryItem",
+          "schema": { "$ref": "#/backend/entities/InventoryItem" },
+          "description": "Stores supply chain inventory items."
+        }
+      },
+      {
+        "path": "/purchaseRequestsSC/{prId}",
+        "definition": {
+          "entityName": "PurchaseRequestSC",
+          "schema": { "$ref": "#/backend/entities/PurchaseRequestSC" },
+          "description": "Stores supply chain purchase requests."
+        }
+      },
+      {
+        "path": "/shipments/{shipmentId}",
+        "definition": {
+          "entityName": "Shipment",
+          "schema": { "$ref": "#/backend/entities/Shipment" },
+          "description": "Stores shipment and logistics data."
         }
       },
       {
@@ -678,6 +746,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `users` collection is added to store user account information. A `helpdeskTickets` collection is added to store helpdesk support tickets."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module."
   }
 }
