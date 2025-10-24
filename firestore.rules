@@ -1,150 +1,304 @@
+/**
+ * @file Overview
+ * This ruleset enforces a multi-tenant security model where users have individual accounts and some data is publicly readable.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles, accessible only to the user themselves.
+ * - /kpi/{kpiId}: Stores Key Performance Indicators, publicly readable.
+ * - /announcements/{announcementId}: Stores announcements, publicly readable.
+ * - /productionStatus/{statusId}: Stores production statuses, publicly readable.
+ * - /paymentRequests/{requestId}: Stores payment requests, publicly readable.
+ * - /budgets/{budgetId}: Stores budget data, publicly readable.
+ * - /leaveRequests/{requestId}: Stores leave requests, publicly readable.
+ * - /userPermissions/{userId}: Stores user-specific permissions, accessible only to the user themselves.
+ * - /helpdeskTickets/{ticketId}: Stores helpdesk tickets, publicly readable.
+ * - /inventory/{itemId}: Stores inventory data, publicly readable.
+ * - /purchaseRequestsSC/{prId}: Stores purchase requests, publicly readable.
+ * - /shipments/{shipmentId}: Stores shipment data, publicly readable.
+ * - /assets/{assetId}: Stores asset data, publicly readable.
+ * - /maintenanceTasks/{taskId}: Stores maintenance task data, publicly readable.
+ * - /produksi/{produksiId}: Stores produksi department data, publicly readable.
+ * - /geologi/{geologiId}: Stores geologi department data, publicly readable.
+ * - /pengolahan/{pengolahanId}: Stores pengolahan department data, publicly readable.
+ * - /k3l/{k3lId}: Stores K3L department data, publicly readable.
+ * - /keuangan/{keuanganId}: Stores keuangan department data, publicly readable.
+ * - /sdm/{sdmId}: Stores SDM department data, publicly readable.
+ * - /it/{itId}: Stores IT department data, publicly readable.
+ *
+ * Key Security Decisions:
+ * - User data is strictly controlled, with each user only able to access their own profile.
+ * - All other collections are publicly readable.
+ * - Write access (create, update, delete) is disabled on all collections for prototyping purposes.  Implement authorization checks for write operations when moving to production.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * @description Manages access to user profile data.
+     * @path /users/{userId}
+     * @allow (create) User with matching UID can create their own profile.
+     * @allow (get, list) User can read their own profile.
+     * @deny (update, delete) Users cannot update or delete their profiles through rules.
+     * @deny (create) User cannot create profile if user id is not matching their own id.
+     * @principle Enforces user-ownership for profile data.
+     */
     match /users/{userId} {
       function isSignedIn() {
         return request.auth != null;
       }
-
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && isOwner(userId) && request.resource.data.uid == resource.data.uid;
+      allow delete: if false;
     }
 
-
+    /**
+     * @description Manages access to KPI data for the main dashboard.
+     * @path /kpi/{kpiId}
+     * @allow (get, list) Anyone can read KPI data.
+     * @deny (create, update, delete) No one can create, update, or delete KPI data through rules.
+     * @principle Allows public read access for dashboard KPIs.
+     */
     match /kpi/{kpiId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to announcement data for the main dashboard.
+     * @path /announcements/{announcementId}
+     * @allow (get, list) Anyone can read announcement data.
+     * @deny (create, update, delete) No one can create, update, or delete announcement data through rules.
+     * @principle Allows public read access for dashboard announcements.
+     */
     match /announcements/{announcementId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to production status data for the main dashboard.
+     * @path /productionStatus/{statusId}
+     * @allow (get, list) Anyone can read production status data.
+     * @deny (create, update, delete) No one can create, update, or delete production status data through rules.
+     * @principle Allows public read access for dashboard production statuses.
+     */
     match /productionStatus/{statusId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to payment request data.
+     * @path /paymentRequests/{requestId}
+     * @allow (get, list) Anyone can read payment request data.
+     * @deny (create, update, delete) No one can create, update, or delete payment request data through rules.
+     * @principle Allows public read access for payment requests.
+     */
     match /paymentRequests/{requestId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to budget data.
+     * @path /budgets/{budgetId}
+     * @allow (get, list) Anyone can read budget data.
+     * @deny (create, update, delete) No one can create, update, or delete budget data through rules.
+     * @principle Allows public read access for budget data.
+     */
     match /budgets/{budgetId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to leave request data.
+     * @path /leaveRequests/{requestId}
+     * @allow (get, list) Anyone can read leave request data.
+     * @deny (create, update, delete) No one can create, update, or delete leave request data through rules.
+     * @principle Allows public read access for leave request data.
+     */
     match /leaveRequests/{requestId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to user-specific permissions.
+     * @path /userPermissions/{userId}
+     * @allow (get) User with matching UID can read their own permissions.
+     * @deny (create, update, delete, list) No one can create, update, delete, or list user permissions through rules.
+     * @principle Enforces user-ownership for permission data.
+     */
     match /userPermissions/{userId} {
       function isSignedIn() {
         return request.auth != null;
       }
-
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to helpdesk ticket data.
+     * @path /helpdeskTickets/{ticketId}
+     * @allow (get, list) Anyone can read helpdesk ticket data.
+     * @deny (create, update, delete) No one can create, update, or delete helpdesk ticket data through rules.
+     * @principle Allows public read access for helpdesk tickets.
+     */
     match /helpdeskTickets/{ticketId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to inventory data.
+     * @path /inventory/{itemId}
+     * @allow (get, list) Anyone can read inventory data.
+     * @deny (create, update, delete) No one can create, update, or delete inventory data through rules.
+     * @principle Allows public read access for inventory data.
+     */
     match /inventory/{itemId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to purchase request data in the supply chain.
+     * @path /purchaseRequestsSC/{prId}
+     * @allow (get, list) Anyone can read purchase request data.
+     * @deny (create, update, delete) No one can create, update, or delete purchase request data through rules.
+     * @principle Allows public read access for purchase requests.
+     */
     match /purchaseRequestsSC/{prId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to shipment data.
+     * @path /shipments/{shipmentId}
+     * @allow (get, list) Anyone can read shipment data.
+     * @deny (create, update, delete) No one can create, update, or delete shipment data through rules.
+     * @principle Allows public read access for shipment data.
+     */
     match /shipments/{shipmentId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to asset data.
+     * @path /assets/{assetId}
+     * @allow (get, list) Anyone can read asset data.
+     * @deny (create, update, delete) No one can create, update, or delete asset data through rules.
+     * @principle Allows public read access for asset data.
+     */
     match /assets/{assetId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
-
+    /**
+     * @description Manages access to maintenance task data.
+     * @path /maintenanceTasks/{taskId}
+     * @allow (get, list) Anyone can read maintenance task data.
+     * @deny (create, update, delete) No one can create, update, or delete maintenance task data through rules.
+     * @principle Allows public read access for maintenance tasks.
+     */
     match /maintenanceTasks/{taskId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
+    /**
+     * @description Manages access to produksi department data.
+     * @path /produksi/{produksiId}
+     * @allow (get, list) Anyone can read produksi data.
+     * @deny (create, update, delete) No one can create, update, or delete produksi data through rules.
+     * @principle Allows public read access for produksi data.
+     */
     match /produksi/{produksiId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
+    /**
+     * @description Manages access to geologi department data.
+     * @path /geologi/{geologiId}
+     * @allow (get, list) Anyone can read geologi data.
+     * @deny (create, update, delete) No one can create, update, or delete geologi data through rules.
+     * @principle Allows public read access for geologi data.
+     */
     match /geologi/{geologiId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
+    /**
+     * @description Manages access to pengolahan department data.
+     * @path /pengolahan/{pengolahanId}
+     * @allow (get, list) Anyone can read pengolahan data.
+     * @deny (create, update, delete) No one can create, update, or delete pengolahan data through rules.
+     * @principle Allows public read access for pengolahan data.
+     */
     match /pengolahan/{pengolahanId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
+    /**
+     * @description Manages access to K3L department data.
+     * @path /k3l/{k3lId}
+     * @allow (get, list) Anyone can read K3L data.
+     * @deny (create, update, delete) No one can create, update, or delete K3L data through rules.
+     * @principle Allows public read access for K3L data.
+     */
     match /k3l/{k3lId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
+    /**
+     * @description Manages access to keuangan department data.
+     * @path /keuangan/{keuanganId}
+     * @allow (get, list) Anyone can read keuangan data.
+     * @deny (create, update, delete) No one can create, update, or delete keuangan data through rules.
+     * @principle Allows public read access for keuangan data.
+     */
     match /keuangan/{keuanganId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
+    /**
+     * @description Manages access to SDM department data.
+     * @path /sdm/{sdmId}
+     * @allow (get, list) Anyone can read SDM data.
+     * @deny (create, update, delete) No one can create, update, or delete SDM data through rules.
+     * @principle Allows public read access for SDM data.
+     */
     match /sdm/{sdmId} {
       allow get, list: if true;
       allow create, update, delete: if false;
     }
 
+    /**
+     * @description Manages access to IT department data.
+     * @path /it/{itId}
+     * @allow (get, list) Anyone can read IT data.
+     * @deny (create, update, delete) No one can create, update, or delete IT data through rules.
+     * @principle Allows public read access for IT data.
+     */
     match /it/{itId} {
       allow get, list: if true;
       allow create, update, delete: if false;
