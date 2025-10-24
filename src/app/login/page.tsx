@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -116,3 +117,9 @@ export default function LoginPage() {
             <a href="#" className="underline text-primary">
               Reset here
             </a>
+          </p>
+        </CardFooter>
+      </Card>
+    </main>
+  );
+}

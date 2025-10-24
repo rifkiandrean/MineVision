@@ -44,4 +44,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <SidebarNav />
       </Sidebar>
       <SidebarInset>
-        <div
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}

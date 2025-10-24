@@ -1,3 +1,4 @@
+
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import {
@@ -94,4 +95,9 @@ export default function ProduksiPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table
+          </Table>
+        </CardContent>
+      </Card>
+    </main>
+  );
+}
