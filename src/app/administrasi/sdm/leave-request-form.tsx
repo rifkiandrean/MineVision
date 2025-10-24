@@ -154,9 +154,4 @@ export function LeaveRequestForm() {
           placeholder="e.g., Keperluan keluarga, sakit, dll."
           rows={3}
         />
-        {state.errors?.reason && <p className="text-sm text-destructive">{state.errors.reason}</p>}
-      </div>
-      <SubmitButton />
-    </form>
-  );
-}
+        {state.errors?.reason && <p className="text-sm text-destructive">{state.errors

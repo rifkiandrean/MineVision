@@ -6,22 +6,26 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { AnomalyDetectionForm } from './anomaly-form';
 
-export default function SdmPage() {
+export default function K3LPage() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-      <PageHeader title="Administrasi: SDM" />
-      <Card>
-        <CardHeader>
-          <CardTitle>HRD Dashboard</CardTitle>
-          <CardDescription>
-            This is a placeholder for the Human Resources department's dashboard.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Employee database, leave management, and training schedules will be displayed here.</p>
-        </CardContent>
-      </Card>
+      <PageHeader title="K3L & Lingkungan" />
+      <div className="grid gap-4 md:gap-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Automated Anomaly Alerts</CardTitle>
+            <CardDescription>
+              Use AI to predict and provide early warnings on potential incidents.
+              Input real-time data from various sources to identify anomalies.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AnomalyDetectionForm />
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }

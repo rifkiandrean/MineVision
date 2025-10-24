@@ -44,8 +44,4 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <SidebarNav />
       </Sidebar>
       <SidebarInset>
-        <div className="min-h-screen">{children}</div>
-      </SidebarInset>
-    </SidebarProvider>
-  );
-}
+        <div

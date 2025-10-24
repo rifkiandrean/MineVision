@@ -68,5 +68,3 @@ export default function SdmPage() {
         {requestToPrint && <PrintableLeaveForm request={requestToPrint} />}
       </div>
     </>
-  );
-}

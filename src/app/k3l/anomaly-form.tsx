@@ -135,10 +135,3 @@ export function AnomalyDetectionForm() {
                             </ul>
                         </div>
                     )}
-                </div>
-            </CardContent>
-        </Card>
-      )}
-    </form>
-  );
-}

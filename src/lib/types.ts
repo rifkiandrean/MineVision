@@ -30,8 +30,4 @@ export type HelpdeskTicket = {
   ticketId: string;
   subject: string;
   priority: 'Low' | 'Medium' | 'High';
-  status: 'Open' | 'In Progress' | 'Closed';
-  userId: string;
-  userEmail: string;
-  createdAt: string;
-};
+  status: 'Open' | 'In Progress' | '

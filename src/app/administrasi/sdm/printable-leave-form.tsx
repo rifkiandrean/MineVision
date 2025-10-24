@@ -51,34 +51,3 @@ export const PrintableLeaveForm: React.FC<PrintableLeaveFormProps> = ({ request 
           <div>
             <p className="text-gray-600">Tanggal Selesai Cuti:</p>
             <p className="font-bold text-lg">{formatDate(request.endDate)}</p>
-          </div>
-          <div className="col-span-2">
-            <p className="text-gray-600">Alasan Cuti:</p>
-            <p className="border border-gray-300 rounded p-3 bg-gray-50 min-h-[100px]">
-              {request.reason}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-20 grid grid-cols-2 gap-12 text-center">
-            <div>
-                 <p className="mb-20">Pemohon,</p>
-                 <div className="border-t border-gray-400 pt-2">
-                    <p className="font-bold">{request.employeeName}</p>
-                 </div>
-            </div>
-            <div>
-                <p className="mb-20">Disetujui oleh,</p>
-                 <div className="border-t border-gray-400 pt-2">
-                    <p className="font-bold">Manager HRD</p>
-                 </div>
-            </div>
-        </div>
-      </main>
-
-       <footer className="text-center text-xs text-gray-500 mt-16 pt-4 border-t">
-          Dokumen ini dicetak melalui Sistem MineVision pada {new Date().toLocaleDateString('id-ID', { dateStyle: 'full'})}
-      </footer>
-    </div>
-  );
-};

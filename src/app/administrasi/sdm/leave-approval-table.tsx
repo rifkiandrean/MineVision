@@ -159,7 +159,4 @@ export function LeaveApprovalTable({ onPrint }: LeaveApprovalTableProps) {
             <div className="text-center py-10 text-muted-foreground">
                 Tidak ada permintaan cuti saat ini.
             </div>
-        )}
-    </div>
-  );
-}
+        

@@ -60,11 +60,3 @@ export default function BudgetChart({ data }: BudgetChartProps) {
             dataKey="actual"
             fill="hsl(var(--primary))"
             radius={[4, 4, 0, 0]}
-          />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-    

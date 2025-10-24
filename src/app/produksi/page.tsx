@@ -94,9 +94,4 @@ export default function ProduksiPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </main>
-  );
-}
+          </Table

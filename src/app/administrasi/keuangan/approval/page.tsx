@@ -155,10 +155,7 @@ export default function ApprovalPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-            </TableBody>
+            </TableBody>          
           </Table>
         </CardContent>
       </Card>
-    </main>
-  );
-}

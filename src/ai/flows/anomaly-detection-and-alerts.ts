@@ -63,7 +63,4 @@ const anomalyDetectionAndAlertsFlow = ai.defineFlow(
     outputSchema: AnomalyDetectionAndAlertsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
+    const {output} = await
