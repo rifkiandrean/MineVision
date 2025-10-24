@@ -44,11 +44,13 @@ import {
   UserCircle,
   Pickaxe,
   Settings,
+  Cubes,
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 
 const navItems = [
   { href: "/", icon: <LayoutDashboard />, label: "Dashboard" },
+  { href: "/perencanaan-tambang", icon: <Cubes />, label: "Perencanaan Tambang" },
   { href: "/produksi", icon: <Truck />, label: "Produksi" },
   { href: "/geologi", icon: <Mountain />, label: "Geologi" },
   { href: "/pengolahan", icon: <Cog />, label: "Pengolahan" },
