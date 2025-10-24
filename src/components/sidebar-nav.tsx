@@ -126,7 +126,7 @@ export default function SidebarNav() {
                 <SidebarMenuItem key={item.label}>
                   <Link href={item.href}>
                     <SidebarMenuButton
-                      isActive={pathname === item.href}
+                      isActive={pathname.startsWith(item.href)}
                       className="w-full justify-start"
                       variant="ghost"
                     >
