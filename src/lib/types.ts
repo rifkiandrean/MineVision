@@ -37,7 +37,7 @@ export type HelpdeskTicket = {
 export type InventoryItem = {
   id: string;
   name: string;
-  category: string;
+  category: "Bahan Peledak" | "Suku Cadang" | "Bahan Bakar" | "Lainnya";
   stock: number;
   unit: string;
   location: string;

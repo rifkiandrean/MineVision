@@ -1,17 +1,18 @@
 
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { createPurchaseRequest, type FormState } from './actions';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection } from 'firebase/firestore';
+import type { InventoryItem } from '@/lib/types';
+import { Combobox } from '@/components/ui/combobox';
 
 const initialState: FormState = {
   message: '',
@@ -34,13 +35,20 @@ function SubmitButton() {
 }
 
 interface PurchaseRequestFormProps {
+    inventoryItems: InventoryItem[];
     onRequestCreated: () => void;
 }
 
-export function PurchaseRequestForm({ onRequestCreated }: PurchaseRequestFormProps) {
+export function PurchaseRequestForm({ inventoryItems, onRequestCreated }: PurchaseRequestFormProps) {
   const { firestore } = useFirebase();
   const [state, formAction] = useActionState(createPurchaseRequest, initialState);
   const { toast } = useToast();
+  const [itemValue, setItemValue] = useState('');
+
+  const itemOptions = inventoryItems.map(item => ({
+      value: item.name,
+      label: item.name,
+  }));
 
   useEffect(() => {
     if (state.message.startsWith('Error')) {
@@ -74,11 +82,14 @@ export function PurchaseRequestForm({ onRequestCreated }: PurchaseRequestFormPro
     <form action={formAction} className="space-y-4 pt-4">
        <div className="space-y-2">
         <Label htmlFor="item">Nama Barang</Label>
-        <Input
-          id="item"
-          name="item"
-          placeholder="e.g., Bearing Roda DT-101"
-          required
+        <input type="hidden" name="item" value={itemValue} />
+        <Combobox
+            options={itemOptions}
+            value={itemValue}
+            onChange={setItemValue}
+            placeholder="Pilih barang atau ketik baru..."
+            searchPlaceholder="Cari barang..."
+            noResultsText="Barang tidak ditemukan."
         />
         {state.errors?.item && <p className="text-sm text-destructive">{state.errors.item}</p>}
       </div>

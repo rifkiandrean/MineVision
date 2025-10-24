@@ -37,14 +37,6 @@ import { collection, query, orderBy } from 'firebase/firestore';
 import type { InventoryItem, PurchaseRequestSC, Shipment } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
-
-const inventoryItems = [
-  { name: 'ANFO', category: 'Bahan Peledak', stock: 5000, unit: 'Kg', location: 'Gudang Peledak 1', usage: 75 },
-  { name: 'Filter Oli EX-05', category: 'Suku Cadang', stock: 25, unit: 'Pcs', location: 'Workshop', usage: 40 },
-  { name: 'Solar (HSD)', category: 'Bahan Bakar', stock: 250000, unit: 'Liter', location: 'Tangki Utama', usage: 82 },
-  { name: 'Ban Dump Truck', category: 'Suku Cadang', stock: 12, unit: 'Pcs', location: 'Gudang Ban', usage: 20 },
-];
-
 const shipmentsData = [
     { id: 'MV-008', vessel: 'MV. Jaya Abadi', cargo: 'Batubara 6300 GAR', quantity: 50000, dest: 'Cigading', status: 'In Transit' },
     { id: 'BG-102', vessel: 'BG. Sumber Rejeki', cargo: 'Batubara 5800 GAR', quantity: 8000, dest: 'PLTU Suralaya', status: 'Loading' },
@@ -55,11 +47,17 @@ export default function RantaiPasokanPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const { firestore } = useFirebase();
 
+    const inventoryQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'inventory'), orderBy('name'));
+    }, [firestore]);
+
     const prQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(collection(firestore, 'purchaseRequestsSC'), orderBy('requestDate', 'desc'));
     }, [firestore]);
 
+    const { data: inventoryItems, isLoading: inventoryLoading } = useCollection<InventoryItem>(inventoryQuery);
     const { data: purchaseRequests, isLoading: prLoading } = useCollection<PurchaseRequestSC>(prQuery);
 
 
@@ -98,7 +96,10 @@ export default function RantaiPasokanPage() {
                 Isi formulir di bawah untuk membuat PR baru.
               </DialogDescription>
             </DialogHeader>
-            <PurchaseRequestForm onRequestCreated={() => setIsDialogOpen(false)} />
+            <PurchaseRequestForm 
+                inventoryItems={inventoryItems || []} 
+                onRequestCreated={() => setIsDialogOpen(false)} 
+            />
           </DialogContent>
         </Dialog>
       </PageHeader>
@@ -120,23 +121,35 @@ export default function RantaiPasokanPage() {
                         <TableHead>Kategori</TableHead>
                         <TableHead>Lokasi</TableHead>
                         <TableHead className="text-right">Stok</TableHead>
-                        <TableHead>Tingkat Penggunaan</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {inventoryItems.map(item => (
-                        <TableRow key={item.name}>
-                            <TableCell className="font-medium">{item.name}</TableCell>
-                            <TableCell>{item.category}</TableCell>
-                            <TableCell>{item.location}</TableCell>
-                            <TableCell className="text-right">{item.stock.toLocaleString('id-ID')} {item.unit}</TableCell>
-                            <TableCell>
-                                <Progress value={item.usage} />
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {inventoryLoading ? (
+                        Array.from({ length: 4 }).map((_, i) => (
+                            <TableRow key={i}>
+                                <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        inventoryItems?.map(item => (
+                            <TableRow key={item.id}>
+                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell>{item.category}</TableCell>
+                                <TableCell>{item.location}</TableCell>
+                                <TableCell className="text-right">{item.stock.toLocaleString('id-ID')} {item.unit}</TableCell>
+                            </TableRow>
+                        ))
+                    )}
                 </TableBody>
             </Table>
+             {!inventoryLoading && inventoryItems?.length === 0 && (
+                <div className="text-center py-10 text-muted-foreground">
+                    Tidak ada data inventaris.
+                </div>
+            )}
           </CardContent>
         </Card>
 
