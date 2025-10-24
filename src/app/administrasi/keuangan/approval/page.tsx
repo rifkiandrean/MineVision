@@ -1,3 +1,4 @@
+
 'use client';
 
 import PageHeader from '@/components/page-header';
@@ -155,7 +156,10 @@ export default function ApprovalPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-            </TableBody>          
+            </TableBody>
           </Table>
         </CardContent>
       </Card>
+    </main>
+  );
+}
