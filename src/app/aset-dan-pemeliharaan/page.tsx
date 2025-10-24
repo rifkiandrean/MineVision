@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,13 +23,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Wrench, PackagePlus, HardHat, CalendarClock, Activity, Truck } from 'lucide-react';
 import DowntimeChart from '@/components/downtime-chart';
-
-const assets = [
-  { id: 'EX-05', name: 'Excavator PC2000', type: 'Alat Gali', location: 'Pit A', status: 'Operasional' },
-  { id: 'DT-101', name: 'Komatsu HD785', type: 'Alat Angkut', location: 'Haul Road 1', status: 'Operasional' },
-  { id: 'DT-102', name: 'Komatsu HD785', type: 'Alat Angkut', location: 'Workshop', status: 'Perawatan' },
-  { id: 'DZ-22', name: 'Dozer D375A', type: 'Alat Dorong', location: 'Waste Dump B', status: 'Siaga' },
-];
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { AssetForm } from './asset-form';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
+import type { Asset } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const preventiveTasks = [
     { id: 'PM-001', asset: 'EX-05', task: 'Pemeriksaan Engine 250 Jam', dueDate: '2024-08-15', status: 'Terjadwal' },
@@ -49,6 +56,16 @@ const spareParts = [
 
 
 export default function AssetMaintenancePage() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { firestore } = useFirebase();
+
+  const assetsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'assets'), orderBy('assetId'));
+  }, [firestore]);
+
+  const { data: assets, isLoading: assetsLoading } = useCollection<Asset>(assetsQuery);
+
 
    const getStatusClass = (status: string) => {
     switch (status) {
@@ -59,6 +76,8 @@ export default function AssetMaintenancePage() {
         return 'bg-yellow-500/80 text-yellow-foreground';
       case 'Siaga':
         return 'bg-blue-500/80 text-blue-foreground';
+      case 'Rusak':
+         return 'bg-red-500/80 text-red-foreground';
       case 'Selesai':
         return 'bg-secondary text-secondary-foreground';
       default:
@@ -69,10 +88,23 @@ export default function AssetMaintenancePage() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
       <PageHeader title="Manajemen Aset & Pemeliharaan">
-        <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-          <PackagePlus className="mr-2 h-4 w-4" />
-          Tambah Aset Baru
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+                <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                    <PackagePlus className="mr-2 h-4 w-4" />
+                    Tambah Aset Baru
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Tambah Aset Baru</DialogTitle>
+                    <DialogDescription>
+                        Isi detail aset baru di bawah ini.
+                    </DialogDescription>
+                </DialogHeader>
+                <AssetForm onAssetCreated={() => setIsDialogOpen(false)} />
+            </DialogContent>
+        </Dialog>
       </PageHeader>
 
       <div className="grid gap-4 md:gap-8">
@@ -96,21 +128,38 @@ export default function AssetMaintenancePage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {assets.map(asset => (
-                        <TableRow key={asset.id}>
-                            <TableCell className="font-medium">{asset.id}</TableCell>
-                            <TableCell>{asset.name}</TableCell>
-                            <TableCell>{asset.type}</TableCell>
-                            <TableCell>{asset.location}</TableCell>
-                            <TableCell>
-                                <Badge variant="secondary" className={getStatusClass(asset.status)}>
-                                    {asset.status}
-                                </Badge>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {assetsLoading ? (
+                        Array.from({ length: 4 }).map((_, i) => (
+                           <TableRow key={i}>
+                                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                           </TableRow>
+                        ))
+                    ) : (
+                        assets?.map(asset => (
+                            <TableRow key={asset.id}>
+                                <TableCell className="font-medium">{asset.assetId}</TableCell>
+                                <TableCell>{asset.name}</TableCell>
+                                <TableCell>{asset.type}</TableCell>
+                                <TableCell>{asset.location}</TableCell>
+                                <TableCell>
+                                    <Badge variant="secondary" className={getStatusClass(asset.status)}>
+                                        {asset.status}
+                                    </Badge>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
                 </TableBody>
             </Table>
+            {!assetsLoading && assets?.length === 0 && (
+                <div className="text-center py-10 text-muted-foreground">
+                    Belum ada aset yang ditambahkan.
+                </div>
+            )}
           </CardContent>
         </Card>
 

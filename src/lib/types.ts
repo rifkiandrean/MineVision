@@ -1,4 +1,5 @@
 
+
 export type PaymentRequest = {
   id: string;
   requestor: string;
@@ -9,7 +10,7 @@ export type PaymentRequest = {
 };
 
 export type Budget = {
-  id: string;
+  id:string;
   category: string;
   budgeted: number;
   actual: number;
@@ -61,4 +62,15 @@ export type Shipment = {
     quantity: number;
     destinationPort: string;
     status: 'Scheduled' | 'Loading' | 'In Transit' | 'Discharged';
+}
+
+export type Asset = {
+    id: string;
+    assetId: string;
+    name: string;
+    type: string;
+    location: string;
+    status: 'Operasional' | 'Perawatan' | 'Siaga' | 'Rusak';
+    purchaseDate: string;
+    initialCost: number;
 }
