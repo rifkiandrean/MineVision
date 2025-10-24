@@ -29,9 +29,9 @@ const sdmModules = [
         title: "Manajemen Karyawan", 
         description: "Data personel, kontrak, dan workflow karyawan.",
         icon: Users,
-        href: "#",
+        href: "/administrasi/sdm/karyawan",
         stats: { value: "1,250", label: "Total Karyawan" },
-        disabled: true,
+        disabled: false,
     },
     { 
         title: "Manajemen Cuti", 
@@ -78,13 +78,30 @@ export default function SdmDashboardPage() {
 
     const { data: pendingLeaveRequests, isLoading: leaveLoading } = useCollection<LeaveRequest>(pendingLeaveQuery);
 
+    const usersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'users'));
+    }, [firestore]);
+
+    const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
+
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
       <PageHeader title="Administrasi: SDM" />
       <div className="grid gap-4 md:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {sdmModules.map(mod => {
             const Icon = mod.icon;
-            const statValue = mod.isDynamic ? (leaveLoading ? <Skeleton className="h-7 w-12"/> : (pendingLeaveRequests?.length ?? 0)) : mod.stats.value;
+            let statValue;
+
+            if (mod.title === "Manajemen Cuti") {
+                statValue = leaveLoading ? <Skeleton className="h-7 w-12"/> : (pendingLeaveRequests?.length ?? 0);
+            } else if (mod.title === "Manajemen Karyawan") {
+                statValue = usersLoading ? <Skeleton className="h-7 w-16"/> : (users?.length ?? 0);
+            } else {
+                statValue = mod.stats.value;
+            }
+            
+            const statLabel = mod.title === "Manajemen Karyawan" ? "Total Karyawan" : mod.stats.label;
 
             return (
                  <Card key={mod.title} className="flex flex-col">
@@ -99,7 +116,7 @@ export default function SdmDashboardPage() {
                         <div className="text-3xl font-bold">
                             {statValue}
                         </div>
-                        <p className="text-xs text-muted-foreground">{mod.stats.label}</p>
+                        <p className="text-xs text-muted-foreground">{statLabel}</p>
                     </CardContent>
                     <CardContent>
                          <Link href={mod.disabled ? "#" : mod.href} passHref>
