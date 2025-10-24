@@ -74,3 +74,32 @@ export type Asset = {
     purchaseDate: string;
     initialCost: number;
 }
+
+export type GeneralLedgerEntry = {
+    id: string;
+    date: string; // ISO 8601 format
+    account: string;
+    description: string;
+    debit: number;
+    credit: number;
+};
+
+export type Invoice = {
+    id: string;
+    invoiceId: string;
+    customerName: string;
+    amount: number;
+    issueDate: string; // YYYY-MM-DD
+    dueDate: string; // YYYY-MM-DD
+    status: 'Draft' | 'Sent' | 'Paid' | 'Overdue';
+};
+
+export type Bill = {
+    id: string;
+    billId: string;
+    vendorName: string;
+    amount: number;
+    billDate: string; // YYYY-MM-DD
+    dueDate: string; // YYYY-MM-DD
+    status: 'Unpaid' | 'Paid' | 'Overdue';
+};

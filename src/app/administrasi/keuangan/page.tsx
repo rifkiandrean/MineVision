@@ -24,8 +24,8 @@ import {
 } from 'lucide-react';
 import BudgetChart from '@/components/budget-chart';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
-import type { Budget } from '@/lib/types';
+import { collection, query, where } from 'firebase/firestore';
+import type { Budget, Invoice, Bill } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function KeuanganPage() {
@@ -36,7 +36,27 @@ export default function KeuanganPage() {
     return query(collection(firestore, 'budgets'));
   }, [firestore]);
 
-  const { data: budgets, isLoading } = useCollection<Budget>(budgetsQuery);
+  const invoicesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'invoices'), where('status', '!=', 'Paid'));
+  }, [firestore]);
+
+  const billsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'bills'), where('status', '==', 'Unpaid'));
+  }, [firestore]);
+
+
+  const { data: budgets, isLoading: budgetsLoading } = useCollection<Budget>(budgetsQuery);
+  const { data: openInvoices, isLoading: invoicesLoading } = useCollection<Invoice>(invoicesQuery);
+  const { data: unpaidBills, isLoading: billsLoading } = useCollection<Bill>(billsQuery);
+
+  const totalReceivables = openInvoices?.reduce((sum, inv) => sum + inv.amount, 0) || 0;
+  const totalPayables = unpaidBills?.reduce((sum, bill) => sum + bill.amount, 0) || 0;
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+  }
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -54,13 +74,15 @@ export default function KeuanganPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start">
-                <BookOpen className="mr-2 h-4 w-4" /> Neraca (Balance Sheet)
-            </Button>
-            <Button variant="outline" className="w-full justify-start">
+            <Link href="/administrasi/keuangan/buku-besar" passHref>
+                <Button variant="outline" className="w-full justify-start">
+                    <BookOpen className="mr-2 h-4 w-4" /> Buku Besar (General Ledger)
+                </Button>
+            </Link>
+            <Button variant="outline" className="w-full justify-start" disabled>
                 <BarChartHorizontal className="mr-2 h-4 w-4" /> Laba Rugi (P&L)
             </Button>
-             <Button variant="outline" className="w-full justify-start">
+             <Button variant="outline" className="w-full justify-start" disabled>
                 <Wallet className="mr-2 h-4 w-4" /> Arus Kas (Cash Flow)
             </Button>
           </CardContent>
@@ -78,7 +100,7 @@ export default function KeuanganPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {budgetsLoading ? (
               <div className="h-[300px] w-full">
                 <Skeleton className="h-full w-full" />
               </div>
@@ -90,32 +112,36 @@ export default function KeuanganPage() {
       </div>
 
        <div className="grid gap-4 md:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-primary"/>
-                        Piutang (AR)
-                    </CardTitle>
-                    <CardDescription>Total tagihan ke pelanggan.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-2xl font-bold">Rp 15.2 Miliar</p>
-                    <p className="text-xs text-muted-foreground">30 faktur terbuka</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <TrendingDown className="h-5 w-5 text-destructive"/>
-                        Hutang (AP)
-                    </CardTitle>
-                    <CardDescription>Total tagihan dari vendor.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-2xl font-bold">Rp 8.7 Miliar</p>
-                    <p className="text-xs text-muted-foreground">45 tagihan belum dibayar</p>
-                </CardContent>
-            </Card>
+            <Link href="/administrasi/keuangan/piutang" className="block">
+              <Card className="h-full hover:bg-muted/50 transition-colors">
+                  <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-primary"/>
+                          Piutang (AR)
+                      </CardTitle>
+                      <CardDescription>Total tagihan ke pelanggan.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      {invoicesLoading ? <Skeleton className="h-8 w-40" /> : <p className="text-2xl font-bold">{formatCurrency(totalReceivables)}</p>}
+                      {invoicesLoading ? <Skeleton className="h-4 w-28 mt-1" /> : <p className="text-xs text-muted-foreground">{openInvoices?.length || 0} faktur terbuka</p>}
+                  </CardContent>
+              </Card>
+            </Link>
+            <Link href="/administrasi/keuangan/hutang" className="block">
+              <Card className="h-full hover:bg-muted/50 transition-colors">
+                  <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                          <TrendingDown className="h-5 w-5 text-destructive"/>
+                          Hutang (AP)
+                      </CardTitle>
+                      <CardDescription>Total tagihan dari vendor.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      {billsLoading ? <Skeleton className="h-8 w-40" /> : <p className="text-2xl font-bold">{formatCurrency(totalPayables)}</p>}
+                      {billsLoading ? <Skeleton className="h-4 w-32 mt-1" /> : <p className="text-xs text-muted-foreground">{unpaidBills?.length || 0} tagihan belum dibayar</p>}
+                  </CardContent>
+              </Card>
+            </Link>
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
