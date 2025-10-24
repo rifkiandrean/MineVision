@@ -527,6 +527,39 @@
         "status": { "type": "string", "enum": ["Scheduled", "Loading", "In Transit", "Discharged"], "description": "Current status of the shipment." }
       },
       "required": ["shipmentId", "vesselName", "quantity", "status"]
+    },
+    "Asset": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Asset",
+      "type": "object",
+      "description": "Represents a company asset, typically heavy equipment.",
+      "properties": {
+        "assetId": { "type": "string", "description": "Unique identifier for the asset." },
+        "name": { "type": "string", "description": "Name or model of the asset." },
+        "type": { "type": "string", "description": "Type or category of the asset." },
+        "location": { "type": "string", "description": "Current location of the asset." },
+        "status": { "type": "string", "enum": ["Operasional", "Perawatan", "Siaga", "Rusak"], "description": "Current operational status." },
+        "purchaseDate": { "type": "string", "format": "date", "description": "Date the asset was purchased." },
+        "initialCost": { "type": "number", "description": "The original purchase cost of the asset." }
+      },
+      "required": ["assetId", "name", "type", "status"]
+    },
+    "MaintenanceTask": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MaintenanceTask",
+      "type": "object",
+      "description": "Represents a maintenance task, either preventive or corrective.",
+      "properties": {
+        "taskId": { "type": "string", "description": "Unique identifier for the maintenance task." },
+        "assetId": { "type": "string", "description": "ID of the asset being maintained." },
+        "type": { "type": "string", "enum": ["Preventive", "Corrective"], "description": "The type of maintenance." },
+        "description": { "type": "string", "description": "Description of the task or issue." },
+        "status": { "type": "string", "enum": ["Terjadwal", "Dalam Pengerjaan", "Selesai", "Ditunda"], "description": "Current status of the task." },
+        "scheduledDate": { "type": "string", "format": "date-time", "description": "The scheduled date for the task (for preventive)." },
+        "completionDate": { "type": "string", "format": "date-time", "description": "The date the task was completed." },
+        "downtimeHours": { "type": "number", "description": "Total hours the asset was down for this task." }
+      },
+      "required": ["taskId", "assetId", "type", "description", "status"]
     }
   },
   "auth": {
@@ -631,6 +664,22 @@
           "entityName": "Shipment",
           "schema": { "$ref": "#/backend/entities/Shipment" },
           "description": "Stores shipment and logistics data."
+        }
+      },
+      {
+        "path": "/assets/{assetId}",
+        "definition": {
+          "entityName": "Asset",
+          "schema": { "$ref": "#/backend/entities/Asset" },
+          "description": "Stores company asset information."
+        }
+      },
+      {
+        "path": "/maintenanceTasks/{taskId}",
+        "definition": {
+          "entityName": "MaintenanceTask",
+          "schema": { "$ref": "#/backend/entities/MaintenanceTask" },
+          "description": "Stores all maintenance tasks and history."
         }
       },
       {
@@ -746,6 +795,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module."
   }
 }

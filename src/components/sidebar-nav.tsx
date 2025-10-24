@@ -46,6 +46,7 @@ import {
   Settings,
   Layers,
   Package,
+  Settings2,
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 
@@ -57,6 +58,7 @@ const navItems = [
   { href: "/pengolahan", icon: <Cog />, label: "Pengolahan" },
   { href: "/k3l", icon: <ShieldCheck />, label: "K3L" },
   { href: "/rantai-pasokan", icon: <Package />, label: "Rantai Pasokan" },
+  { href: "/aset-dan-pemeliharaan", icon: <Settings2 />, label: "Aset & Pemeliharaan" },
 ];
 
 const adminNavItems = [
