@@ -76,7 +76,7 @@ export function LeaveRequestForm() {
       setStartDate(undefined);
       setEndDate(undefined);
       const form = document.getElementById('leave-request-form') as HTMLFormElement;
-      form.reset();
+      if (form) form.reset();
 
     }
   }, [state, toast, firestore]);
@@ -154,4 +154,9 @@ export function LeaveRequestForm() {
           placeholder="e.g., Keperluan keluarga, sakit, dll."
           rows={3}
         />
-        {state.errors?.reason && <p className="text-sm text-destructive">{state.errors
+        {state.errors?.reason && <p className="text-sm text-destructive">{state.errors.reason}</p>}
+      </div>
+      <SubmitButton />
+    </form>
+  );
+}
