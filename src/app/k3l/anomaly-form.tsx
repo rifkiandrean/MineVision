@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { handleAnomalyDetection, FormState } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, AlertTriangle, CheckCircle, Bot } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+
 
 const initialState: FormState = { message: "" };
 
@@ -23,53 +25,73 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} className="w-full sm:w-auto bg-primary">
-      {pending ? "Analyzing..." : "Analyze Data"}
+      {pending ? "Menganalisis..." : "Analisis Data"}
     </Button>
   );
 }
 
 export function AnomalyDetectionForm() {
   const [state, formAction] = useActionState(handleAnomalyDetection, initialState);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!state.message) return;
+
+    if (state.message.startsWith("Error")) {
+       toast({
+         variant: "destructive",
+         title: "Analisis Gagal",
+         description: state.message,
+       });
+    } else if (state.message.startsWith("Sukses") && !state.issues) {
+        toast({
+         title: "Analisis Selesai",
+         description: state.message,
+       });
+    }
+
+  }, [state, toast]);
+
 
   return (
     <form action={formAction} className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="k3lData">K3L Data</Label>
+          <Label htmlFor="k3lData">Data K3L</Label>
           <Textarea
             id="k3lData"
             name="k3lData"
-            placeholder="e.g., Near-miss reported at Pit-B, safety officer conducting inspection..."
+            placeholder="cth., Laporan nyaris celaka di Pit-B, petugas keselamatan sedang melakukan inspeksi..."
             rows={4}
           />
           {state.fields?.k3lData && <p className="text-sm text-destructive">{state.fields.k3lData}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="equipmentReports">Equipment Reports</Label>
+          <Label htmlFor="equipmentReports">Laporan Peralatan</Label>
           <Textarea
             id="equipmentReports"
             name="equipmentReports"
-            placeholder="e.g., Excavator EX-05 showing high engine temperature warnings..."
+            placeholder="cth., Excavator EX-05 menunjukkan peringatan suhu mesin tinggi..."
             rows={4}
           />
            {state.fields?.equipmentReports && <p className="text-sm text-destructive">{state.fields.equipmentReports}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="productionMetrics">Production Metrics</Label>
+          <Label htmlFor="productionMetrics">Metrik Produksi</Label>
           <Textarea
             id="productionMetrics"
             name="productionMetrics"
-            placeholder="e.g., Hourly output from Crusher-02 dropped by 15%..."
+            placeholder="cth., Output per jam dari Crusher-02 turun 15%..."
             rows={4}
           />
            {state.fields?.productionMetrics && <p className="text-sm text-destructive">{state.fields.productionMetrics}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="environmentalFactors">Environmental Factors</Label>
+          <Label htmlFor="environmentalFactors">Faktor Lingkungan</Label>
           <Textarea
             id="environmentalFactors"
             name="environmentalFactors"
-            placeholder="e.g., Heavy rainfall warning issued, visibility reduced..."
+            placeholder="cth., Peringatan hujan lebat dikeluarkan, jarak pandang berkurang..."
             rows={4}
           />
            {state.fields?.environmentalFactors && <p className="text-sm text-destructive">{state.fields.environmentalFactors}</p>}
@@ -79,15 +101,7 @@ export function AnomalyDetectionForm() {
       <div className="flex justify-end">
         <SubmitButton />
       </div>
-
-      {state.message && (
-        <Alert variant={state.message.startsWith("Error") ? "destructive" : "default"} className={!state.message.startsWith("Error") ? "bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-800" : ""}>
-          {state.message.startsWith("Error") ? <AlertCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-          <AlertTitle>{state.message.startsWith("Error") ? "Error" : "Status"}</AlertTitle>
-          <AlertDescription>{state.message}</AlertDescription>
-        </Alert>
-      )}
-
+      
       {state.issues && (
         <Card className="bg-muted/50">
             <CardHeader className="flex-row items-start gap-4">
@@ -95,15 +109,15 @@ export function AnomalyDetectionForm() {
                     <Bot className="h-6 w-6 text-primary-foreground"/>
                 </div>
                 <div>
-                    <CardTitle>AI Analysis Complete</CardTitle>
-                    <CardDescription>The following potential issues have been identified.</CardDescription>
+                    <CardTitle>Analisis AI Selesai</CardTitle>
+                    <CardDescription>Potensi masalah berikut telah diidentifikasi.</CardDescription>
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">
                 {state.issues.alerts.length > 0 && (
                      <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Generated Alerts</AlertTitle>
+                        <AlertTitle>Peringatan Dibuat</AlertTitle>
                         <AlertDescription>
                             <ul className="list-disc pl-5 mt-2 space-y-1">
                                 {state.issues.alerts.map((alert, i) => <li key={i}>{alert}</li>)}
@@ -114,7 +128,7 @@ export function AnomalyDetectionForm() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {state.issues.potentialIncidents.length > 0 && (
                         <div>
-                            <h4 className="font-semibold mb-2">Potential Incidents</h4>
+                            <h4 className="font-semibold mb-2">Potensi Insiden</h4>
                             <ul className="list-disc pl-5 text-sm space-y-1">
                                 {state.issues.potentialIncidents.map((item, i) => <li key={i}>{item}</li>)}
                             </ul>
@@ -122,7 +136,7 @@ export function AnomalyDetectionForm() {
                     )}
                     {state.issues.equipmentFailures.length > 0 && (
                         <div>
-                            <h4 className="font-semibold mb-2">Equipment Failures</h4>
+                            <h4 className="font-semibold mb-2">Kerusakan Peralatan</h4>
                             <ul className="list-disc pl-5 text-sm space-y-1">
                                 {state.issues.equipmentFailures.map((item, i) => <li key={i}>{item}</li>)}
                             </ul>
@@ -130,7 +144,7 @@ export function AnomalyDetectionForm() {
                     )}
                     {state.issues.productionShortfalls.length > 0 && (
                         <div>
-                            <h4 className="font-semibold mb-2">Production Shortfalls</h4>
+                            <h4 className="font-semibold mb-2">Penurunan Produksi</h4>
                             <ul className="list-disc pl-5 text-sm space-y-1">
                                 {state.issues.productionShortfalls.map((item, i) => <li key={i}>{item}</li>)}
                             </ul>

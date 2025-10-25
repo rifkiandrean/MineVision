@@ -1,3 +1,4 @@
+
 "use server";
 
 import { anomalyDetectionAndAlerts } from "@/ai/flows/anomaly-detection-and-alerts";
@@ -6,16 +7,16 @@ import { z } from "zod";
 const formSchema = z.object({
   k3lData: z
     .string()
-    .min(10, { message: "K3L data must be at least 10 characters." }),
+    .min(10, { message: "Data K3L harus memiliki minimal 10 karakter." }),
   equipmentReports: z
     .string()
-    .min(10, { message: "Equipment reports must be at least 10 characters." }),
+    .min(10, { message: "Laporan peralatan harus memiliki minimal 10 karakter." }),
   productionMetrics: z
     .string()
-    .min(10, { message: "Production metrics must be at least 10 characters." }),
+    .min(10, { message: "Metrik produksi harus memiliki minimal 10 karakter." }),
   environmentalFactors: z
     .string()
-    .min(10, { message: "Environmental factors must be at least 10 characters." }),
+    .min(10, { message: "Faktor lingkungan harus memiliki minimal 10 karakter." }),
 });
 
 export type FormState = {
@@ -43,7 +44,7 @@ export async function handleAnomalyDetection(
   if (!validatedFields.success) {
     const fieldErrors = validatedFields.error.flatten().fieldErrors;
     return {
-      message: "Error: Please check the fields.",
+      message: "Error: Harap periksa kembali isian Anda.",
       fields: {
         k3lData: fieldErrors.k3lData?.[0],
         equipmentReports: fieldErrors.equipmentReports?.[0],
@@ -56,10 +57,10 @@ export async function handleAnomalyDetection(
   try {
     const result = await anomalyDetectionAndAlerts(validatedFields.data);
     if (!result || (result.alerts.length === 0 && result.potentialIncidents.length === 0 && result.equipmentFailures.length === 0 && result.productionShortfalls.length === 0)) {
-        return { message: "Success: No anomalies detected based on the provided data." };
+        return { message: "Sukses: Tidak ada anomali yang terdeteksi berdasarkan data yang diberikan." };
     }
-    return { message: "Success: Anomalies detected.", issues: result };
+    return { message: "Sukses: Anomali terdeteksi.", issues: result };
   } catch (e) {
-    return { message: "Error: Failed to process data with AI." };
+    return { message: "Error: Gagal memproses data dengan AI." };
   }
 }

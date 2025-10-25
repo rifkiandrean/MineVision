@@ -1,3 +1,4 @@
+
 import PageHeader from '@/components/page-header';
 import {
   Card,
@@ -15,10 +16,10 @@ export default function K3LPage() {
       <div className="grid gap-4 md:gap-8">
         <Card>
           <CardHeader>
-            <CardTitle>Automated Anomaly Alerts</CardTitle>
+            <CardTitle>Peringatan Anomali Otomatis</CardTitle>
             <CardDescription>
-              Use AI to predict and provide early warnings on potential incidents.
-              Input real-time data from various sources to identify anomalies.
+              Gunakan AI untuk memprediksi dan memberikan peringatan dini tentang potensi insiden.
+              Masukkan data real-time dari berbagai sumber untuk mengidentifikasi anomali.
             </CardDescription>
           </CardHeader>
           <CardContent>
