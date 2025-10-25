@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import PageHeader from '@/components/page-header';
 import {
   Card,
@@ -22,12 +23,19 @@ import { Badge } from '@/components/ui/badge';
 import { AnomalyDetectionForm } from './anomaly-form';
 import { ClipboardCheck, Megaphone, Wind, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const incidents = [
-    { id: 'INC-021', type: 'Near Miss', date: '2024-08-10', status: 'Investigasi' },
-    { id: 'HAZ-045', type: 'Hazard Report', date: '2024-08-09', status: 'Ditutup' },
-    { id: 'INC-020', type: 'Property Damage', date: '2024-08-08', status: 'Ditutup' },
-];
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { IncidentForm } from './incident-form';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import type { Incident } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const complianceItems = [
     { id: 'ENV-001', name: 'Audit Kualitas Air', status: 'Sesuai', dueDate: '2024-09-01' },
@@ -36,6 +44,15 @@ const complianceItems = [
 ]
 
 export default function K3LPage() {
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const { firestore } = useFirebase();
+
+    const incidentsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'incidents'), orderBy('date', 'desc'), limit(5));
+    }, [firestore]);
+
+    const { data: incidents, isLoading: incidentsLoading } = useCollection<Incident>(incidentsQuery);
 
     const getStatusClass = (status: string) => {
         switch (status) {
@@ -45,6 +62,7 @@ export default function K3LPage() {
             case 'Investigasi':
                 return 'bg-yellow-500/80 text-yellow-foreground';
             case 'Terlambat':
+            case 'Open':
                 return 'bg-red-500/80 text-red-foreground';
             default:
                 return 'bg-secondary text-secondary-foreground';
@@ -65,10 +83,23 @@ export default function K3LPage() {
                 <CardDescription>Pencatatan dan pelacakan kecelakaan atau potensi bahaya (near miss).</CardDescription>
             </CardHeader>
             <CardContent>
-                <Button className="w-full mb-4">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Laporkan Insiden Baru
-                </Button>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button className="w-full mb-4">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Laporkan Insiden Baru
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                            <DialogTitle>Laporkan Insiden atau Bahaya Baru</DialogTitle>
+                            <DialogDescription>
+                                Isi detail di bawah ini. Laporan Anda akan segera ditinjau oleh tim K3L.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <IncidentForm onIncidentReported={() => setIsDialogOpen(false)} />
+                    </DialogContent>
+                </Dialog>
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -78,19 +109,34 @@ export default function K3LPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {incidents.map(inc => (
-                            <TableRow key={inc.id}>
-                                <TableCell className="font-medium">{inc.id}</TableCell>
-                                <TableCell>{inc.type}</TableCell>
-                                <TableCell>
-                                    <Badge variant="secondary" className={cn(getStatusClass(inc.status))}>
-                                        {inc.status}
-                                    </Badge>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {incidentsLoading ? (
+                            Array.from({length: 3}).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-4 w-24"/></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-32"/></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-20"/></TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            incidents?.map(inc => (
+                                <TableRow key={inc.id}>
+                                    <TableCell className="font-medium">#{inc.incidentId}</TableCell>
+                                    <TableCell>{inc.type}</TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary" className={cn(getStatusClass(inc.status))}>
+                                            {inc.status}
+                                        </Badge>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
                     </TableBody>
                 </Table>
+                { !incidentsLoading && incidents?.length === 0 && (
+                    <div className="text-center py-10 text-muted-foreground">
+                        Belum ada insiden yang dilaporkan.
+                    </div>
+                )}
             </CardContent>
         </Card>
         <Card>

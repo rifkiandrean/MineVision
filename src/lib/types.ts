@@ -112,4 +112,13 @@ export type BankAccount = {
     balance: number;
 };
 
+export type Incident = {
+    id: string;
+    incidentId: string;
+    type: 'Near Miss' | 'Hazard Report' | 'Property Damage' | 'First Aid' | 'Lost Time Injury';
+    date: string;
+    location: string;
+    description: string;
+    status: 'Open' | 'Investigasi' | 'Ditutup';
+};
     
