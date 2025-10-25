@@ -47,6 +47,7 @@ import {
   Layers,
   Package,
   Settings2,
+  BarChart4,
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
 
@@ -59,6 +60,7 @@ const navItems = [
   { href: "/k3l", icon: <ShieldCheck />, label: "K3L" },
   { href: "/rantai-pasokan", icon: <Package />, label: "Rantai Pasokan" },
   { href: "/aset-dan-pemeliharaan", icon: <Settings2 />, label: "Aset & Pemeliharaan" },
+  { href: "/pelaporan-dan-analisis", icon: <BarChart4 />, label: "Pelaporan & Analisis" },
 ];
 
 const adminNavItems = [
