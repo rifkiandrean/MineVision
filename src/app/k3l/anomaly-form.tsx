@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState, useFormStatus } from "react";
 import { handleAnomalyDetection, FormState } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +29,7 @@ function SubmitButton() {
 }
 
 export function AnomalyDetectionForm() {
-  const [state, formAction] = useFormState(handleAnomalyDetection, initialState);
+  const [state, formAction] = useActionState(handleAnomalyDetection, initialState);
 
   return (
     <form action={formAction} className="space-y-8">
