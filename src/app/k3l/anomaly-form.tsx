@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
@@ -53,7 +54,7 @@ export function AnomalyDetectionForm() {
           />
            {state.fields?.equipmentReports && <p className="text-sm text-destructive">{state.fields.equipmentReports}</p>}
         </div>
-        <div className="spacey-y-2">
+        <div className="space-y-2">
           <Label htmlFor="productionMetrics">Production Metrics</Label>
           <Textarea
             id="productionMetrics"
@@ -135,3 +136,10 @@ export function AnomalyDetectionForm() {
                             </ul>
                         </div>
                     )}
+                </div>
+            </CardContent>
+        </Card>
+      )}
+    </form>
+  );
+}
