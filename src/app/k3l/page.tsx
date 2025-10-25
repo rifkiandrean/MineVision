@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AnomalyDetectionForm } from './anomaly-form';
-import { ClipboardCheck, Megaphone, Wind, PlusCircle } from 'lucide-react';
+import { ClipboardCheck, Megaphone, Wind, PlusCircle, CalendarIcon, MapPin, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -41,10 +41,13 @@ const complianceItems = [
     { id: 'ENV-001', name: 'Audit Kualitas Air', status: 'Sesuai', dueDate: '2024-09-01' },
     { id: 'HSE-005', name: 'Pelatihan P3K', status: 'Terlambat', dueDate: '2024-07-30' },
     { id: 'ENV-002', name: 'Laporan Emisi Debu', status: 'Sesuai', dueDate: '2024-08-15' },
-]
+];
 
 export default function K3LPage() {
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+
     const { firestore } = useFirebase();
 
     const incidentsQuery = useMemoFirebase(() => {
@@ -68,7 +71,18 @@ export default function K3LPage() {
                 return 'bg-secondary text-secondary-foreground';
         }
     };
-
+    
+    const handleRowClick = (incident: Incident) => {
+        setSelectedIncident(incident);
+        setIsDetailOpen(true);
+    }
+    
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleString('id-ID', {
+            dateStyle: 'long',
+            timeStyle: 'short'
+        });
+    }
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -83,7 +97,7 @@ export default function K3LPage() {
                 <CardDescription>Pencatatan dan pelacakan kecelakaan atau potensi bahaya (near miss).</CardDescription>
             </CardHeader>
             <CardContent>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                     <DialogTrigger asChild>
                         <Button className="w-full mb-4">
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -97,7 +111,7 @@ export default function K3LPage() {
                                 Isi detail di bawah ini. Laporan Anda akan segera ditinjau oleh tim K3L.
                             </DialogDescription>
                         </DialogHeader>
-                        <IncidentForm onIncidentReported={() => setIsDialogOpen(false)} />
+                        <IncidentForm onIncidentReported={() => setIsFormOpen(false)} />
                     </DialogContent>
                 </Dialog>
                 <Table>
@@ -119,7 +133,7 @@ export default function K3LPage() {
                             ))
                         ) : (
                             incidents?.map(inc => (
-                                <TableRow key={inc.id}>
+                                <TableRow key={inc.id} onClick={() => handleRowClick(inc)} className="cursor-pointer">
                                     <TableCell className="font-medium">#{inc.incidentId}</TableCell>
                                     <TableCell>{inc.type}</TableCell>
                                     <TableCell>
@@ -189,6 +203,46 @@ export default function K3LPage() {
           <AnomalyDetectionForm />
         </CardContent>
       </Card>
+      
+      {/* Incident Detail Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="sm:max-w-lg">
+          {selectedIncident && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Detail Laporan Insiden #{selectedIncident.incidentId}</DialogTitle>
+                <DialogDescription>
+                  Rincian lengkap dari laporan insiden yang dipilih.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                 <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-muted-foreground">Jenis Laporan</span>
+                    <span className="font-semibold">{selectedIncident.type}</span>
+                </div>
+                 <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-muted-foreground">Status</span>
+                    <Badge variant="secondary" className={cn(getStatusClass(selectedIncident.status))}>
+                        {selectedIncident.status}
+                    </Badge>
+                </div>
+                <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><CalendarIcon className="h-4 w-4"/>Tanggal & Waktu</h4>
+                    <p>{formatDate(selectedIncident.date)}</p>
+                </div>
+                <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4"/>Lokasi</h4>
+                    <p>{selectedIncident.location}</p>
+                </div>
+                 <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><FileText className="h-4 w-4"/>Deskripsi</h4>
+                    <p className="p-3 bg-muted rounded-md text-sm">{selectedIncident.description}</p>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
