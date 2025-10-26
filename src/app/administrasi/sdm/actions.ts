@@ -49,4 +49,3 @@ export async function validateLeaveRequest(prevState: any, formData: FormData): 
     data: validatedFields.data,
   };
 }
-
