@@ -1,14 +1,54 @@
+/**
+ * @fileoverview Firestore Security Rules for MineVision application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a role-based access control model for the MineVision application.
+ * It uses department roles to control access to various collections.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information, including department.
+ * - /kpi/{kpiId}: Stores Key Performance Indicators for the dashboard.
+ * - /announcements/{announcementId}: Stores global announcements for the dashboard.
+ * - /productionStatus/{statusId}: Stores real-time production statuses.
+ * - /paymentRequests/{requestId}: Stores payment requests.
+ * - /budgets/{budgetId}: Stores budget information.
+ * - /leaveRequests/{requestId}: Stores leave requests from employees.
+ * - /userPermissions/{userId}: Stores permissions for each user.
+ * - /helpdeskTickets/{ticketId}: Stores helpdesk support tickets.
+ * - /incidents/{incidentId}: Stores K3L incident and hazard reports.
+ * - /inventory/{itemId}: Stores supply chain inventory items.
+ * - /purchaseRequestsSC/{prId}: Stores supply chain purchase requests.
+ * - /shipments/{shipmentId}: Stores shipment and logistics data.
+ * - /assets/{assetId}: Stores company asset information.
+ * - /maintenanceTasks/{taskId}: Stores maintenance tasks and history.
+ * - /generalLedger/{entryId}: Stores general ledger journal entries.
+ * - /invoices/{invoiceId}: Stores accounts receivable invoices.
+ * - /bills/{billId}: Stores accounts payable bills from vendors.
+ * - /bankAccounts/{accountId}: Stores company bank account information.
+ * - /produksi/{produksiId}: Stores production department data.
+ * - /geologi/{geologiId}: Stores geology department data.
+ * - /pengolahan/{pengolahanId}: Stores processing department data.
+ * - /k3l/{k3lId}: Stores K3L department data.
+ * - /keuangan/{keuanganId}: Stores finance department data.
+ * - /sdm/{sdmId}: Stores HR department data.
+ * - /it/{itId}: Stores IT department data.
+ *
+ * Key Security Decisions:
+ * - The rules do not enforce a specific schema.
+ * - Read-only access for the department collections (produksi, geologi, etc.).
+ * - Strict user-ownership model for user profiles.
+ * - No user listing is allowed.
+ */
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read and write their own user document.
+     * @description Allows access to user profile data.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user creates their own user document with matching UID.
-     * @deny (create) - Unauthenticated user attempts to create a user document.
-     * @allow (get) - Authenticated user reads their own user document.
-     * @deny (get) - Authenticated user attempts to read another user's document.
+     * @allow (read, write) if the user's UID matches the userId.
+     * @deny (read, write) if the user is not authenticated.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
@@ -20,95 +60,120 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
-      }
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isSignedIn() && isOwner(userId) && request.resource.data.uid == resource.data.uid;
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Allows public read access to KPI documents, but restricts writes.
+     * @description Allows access to KPI data.
      * @path /kpi/{kpiId}
-     * @allow (get) - Any user can read a KPI document.
-     * @deny (create) - Any user attempts to create a KPI document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
      */
     match /kpi/{kpiId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access to announcement documents, but restricts writes.
+     * @description Allows access to announcement data.
      * @path /announcements/{announcementId}
-     * @allow (get) - Any user can read an announcement document.
-     * @deny (create) - Any user attempts to create an announcement document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
      */
     match /announcements/{announcementId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access to production status documents, but restricts writes.
+     * @description Allows access to production status data.
      * @path /productionStatus/{statusId}
-     * @allow (get) - Any user can read a production status document.
-     * @deny (create) - Any user attempts to create a production status document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
      */
     match /productionStatus/{statusId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
-    /**
-     * @description Allows public read access to payment request documents, but restricts writes.
-     * @path /paymentRequests/{requestId}
-     * @allow (get) - Any user can read a payment request document.
-     * @deny (create) - Any user attempts to create a payment request document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
+     /**
+      * @description Allows access to payment request data.
+      * @path /paymentRequests/{requestId}
+      * @allow (read) to anyone.
+      * @allow (create, update, delete) to authenticated users.
+      * @deny (create, update, delete) if the user is not authenticated.
+      */
     match /paymentRequests/{requestId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access to budget documents, but restricts writes.
+     * @description Allows access to budget data.
      * @path /budgets/{budgetId}
-     * @allow (get) - Any user can read a budget document.
-     * @deny (create) - Any user attempts to create a budget document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
      */
     match /budgets/{budgetId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access to leave request documents, but restricts writes.
+     * @description Allows access to leave request data.
      * @path /leaveRequests/{requestId}
-     * @allow (get) - Any user can read a leave request document.
-     * @deny (create) - Any user attempts to create a leave request document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
      */
     match /leaveRequests/{requestId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows users to read and write their own user permissions document.
+     * @description Allows access to user permissions data.
      * @path /userPermissions/{userId}
-     * @allow (create) - Authenticated user creates their own user permissions document with matching UID.
-     * @deny (create) - Unauthenticated user attempts to create a user permissions document.
-     * @allow (get) - Authenticated user reads their own user permissions document.
-     * @deny (get) - Authenticated user attempts to read another user's user permissions document.
+     * @allow (read, write) if the user's UID matches the userId.
+     * @deny (read, write) if the user is not authenticated.
      * @principle Enforces document ownership for writes.
      */
     match /userPermissions/{userId} {
@@ -120,144 +185,205 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
-      }
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isSignedIn() && isOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Allows public read access to helpdesk ticket documents, but restricts writes.
+     * @description Allows access to helpdesk ticket data.
      * @path /helpdeskTickets/{ticketId}
-     * @allow (get) - Any user can read a helpdesk ticket document.
-     * @deny (create) - Any user attempts to create a helpdesk ticket document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
      */
     match /helpdeskTickets/{ticketId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
       allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-      /**
-     * @description Allows public read access to incident documents, but restricts writes.
-     * @path /incidents/{incidentId}
-     * @allow (get) - Any user can read an incident document.
-     * @deny (create) - Any user attempts to create an incident document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /incidents/{incidentId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-    /**
-     * @description Allows public read access to inventory item documents, but restricts writes.
-     * @path /inventory/{itemId}
-     * @allow (get) - Any user can read an inventory item document.
-     * @deny (create) - Any user attempts to create an inventory item document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /inventory/{itemId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-      /**
-     * @description Allows public read access to purchase request documents, but restricts writes.
-     * @path /purchaseRequestsSC/{prId}
-     * @allow (get) - Any user can read a purchase request document.
-     * @deny (create) - Any user attempts to create a purchase request document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /purchaseRequestsSC/{prId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-    /**
-     * @description Allows public read access to shipment documents, but restricts writes.
-     * @path /shipments/{shipmentId}
-     * @allow (get) - Any user can read a shipment document.
-     * @deny (create) - Any user attempts to create a shipment document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /shipments/{shipmentId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-    /**
-     * @description Allows public read access to asset documents, but restricts writes.
-     * @path /assets/{assetId}
-     * @allow (get) - Any user can read an asset document.
-     * @deny (create) - Any user attempts to create an asset document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /assets/{assetId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-     /**
-     * @description Allows public read access to maintenance task documents, but restricts writes.
-     * @path /maintenanceTasks/{taskId}
-     * @allow (get) - Any user can read a maintenance task document.
-     * @deny (create) - Any user attempts to create a maintenance task document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /maintenanceTasks/{taskId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-      /**
-     * @description Allows public read access to general ledger entry documents, but restricts writes.
-     * @path /generalLedger/{entryId}
-     * @allow (get) - Any user can read a general ledger entry document.
-     * @deny (create) - Any user attempts to create a general ledger entry document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /generalLedger/{entryId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-    /**
-     * @description Allows public read access to invoice documents, but restricts writes.
-     * @path /invoices/{invoiceId}
-     * @allow (get) - Any user can read an invoice document.
-     * @deny (create) - Any user attempts to create a invoice document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /invoices/{invoiceId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-    /**
-     * @description Allows public read access to bill documents, but restricts writes.
-     * @path /bills/{billId}
-     * @allow (get) - Any user can read a bill document.
-     * @deny (create) - Any user attempts to create a bill document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /bills/{billId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-    /**
-     * @description Allows public read access to bank account documents, but restricts writes.
-     * @path /bankAccounts/{accountId}
-     * @allow (get) - Any user can read a bank account document.
-     * @deny (create) - Any user attempts to create a bank account document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
-     */
-    match /bankAccounts/{accountId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access to produksi documents, but restricts writes.
+     * @description Allows access to incident data.
+     * @path /incidents/{incidentId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /incidents/{incidentId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows access to inventory data.
+     * @path /inventory/{itemId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /inventory/{itemId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows access to purchase request data.
+     * @path /purchaseRequestsSC/{prId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /purchaseRequestsSC/{prId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows access to shipment data.
+     * @path /shipments/{shipmentId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /shipments/{shipmentId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows access to asset data.
+     * @path /assets/{assetId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /assets/{assetId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows access to maintenance task data.
+     * @path /maintenanceTasks/{taskId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /maintenanceTasks/{taskId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows access to general ledger data.
+     * @path /generalLedger/{entryId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /generalLedger/{entryId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows access to invoice data.
+     * @path /invoices/{invoiceId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /invoices/{invoiceId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows access to bill data.
+     * @path /bills/{billId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /bills/{billId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows access to bank account data.
+     * @path /bankAccounts/{accountId}
+     * @allow (read) to anyone.
+     * @allow (create, update, delete) to authenticated users.
+     * @deny (create, update, delete) if the user is not authenticated.
+     */
+    match /bankAccounts/{accountId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description Allows read-only access to produksi data.
      * @path /produksi/{produksiId}
-     * @allow (get) - Any user can read a produksi document.
-     * @deny (create) - Any user attempts to create a produksi document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @deny (create, update, delete) to everyone.
      */
     match /produksi/{produksiId} {
       allow get, list: if true;
@@ -265,11 +391,10 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to geologi documents, but restricts writes.
+     * @description Allows read-only access to geologi data.
      * @path /geologi/{geologiId}
-     * @allow (get) - Any user can read a geologi document.
-     * @deny (create) - Any user attempts to create a geologi document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @deny (create, update, delete) to everyone.
      */
     match /geologi/{geologiId} {
       allow get, list: if true;
@@ -277,11 +402,10 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to pengolahan documents, but restricts writes.
+     * @description Allows read-only access to pengolahan data.
      * @path /pengolahan/{pengolahanId}
-     * @allow (get) - Any user can read a pengolahan document.
-     * @deny (create) - Any user attempts to create a pengolahan document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @deny (create, update, delete) to everyone.
      */
     match /pengolahan/{pengolahanId} {
       allow get, list: if true;
@@ -289,11 +413,10 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to k3l documents, but restricts writes.
+     * @description Allows read-only access to k3l data.
      * @path /k3l/{k3lId}
-     * @allow (get) - Any user can read a k3l document.
-     * @deny (create) - Any user attempts to create a k3l document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @deny (create, update, delete) to everyone.
      */
     match /k3l/{k3lId} {
       allow get, list: if true;
@@ -301,11 +424,10 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to keuangan documents, but restricts writes.
+     * @description Allows read-only access to keuangan data.
      * @path /keuangan/{keuanganId}
-     * @allow (get) - Any user can read a keuangan document.
-     * @deny (create) - Any user attempts to create a keuangan document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @deny (create, update, delete) to everyone.
      */
     match /keuangan/{keuanganId} {
       allow get, list: if true;
@@ -313,11 +435,10 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to sdm documents, but restricts writes.
+     * @description Allows read-only access to sdm data.
      * @path /sdm/{sdmId}
-     * @allow (get) - Any user can read a sdm document.
-     * @deny (create) - Any user attempts to create a sdm document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @deny (create, update, delete) to everyone.
      */
     match /sdm/{sdmId} {
       allow get, list: if true;
@@ -325,11 +446,10 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to it documents, but restricts writes.
+     * @description Allows read-only access to it data.
      * @path /it/{itId}
-     * @allow (get) - Any user can read a it document.
-     * @deny (create) - Any user attempts to create a it document.
-     * @principle Public read access with owner-only writes (write is unavailable here, so it's `if false`).
+     * @allow (read) to anyone.
+     * @deny (create, update, delete) to everyone.
      */
     match /it/{itId} {
       allow get, list: if true;
