@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -23,7 +24,7 @@ import {
   Layers,
   Package,
   Settings2,
-  ArrowRight,
+  PlusCircle,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/page-header';
@@ -32,6 +33,15 @@ import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { AnnouncementForm } from './announcement-form';
 
 const moduleLinks = [
   { href: '/perencanaan-tambang', icon: Layers, label: 'Perencanaan', description: 'Model geologi dan desain tambang.' },
@@ -46,6 +56,7 @@ const moduleLinks = [
 
 export default function Home() {
   const { firestore, isUserLoading } = useFirebase();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const kpiQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;
@@ -94,10 +105,26 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
       <PageHeader title="Dashboard Utama">
-        <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-          <FileText className="mr-2 h-4 w-4" />
-          Generate Report
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Tambah Pengumuman
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Buat Pengumuman Baru</DialogTitle>
+              <DialogDescription>
+                Isi detail pengumuman di bawah ini. Pengumuman akan muncul di
+                dasbor utama.
+              </DialogDescription>
+            </DialogHeader>
+            <AnnouncementForm
+              onAnnouncementCreated={() => setIsDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
@@ -170,6 +197,11 @@ export default function Home() {
                     </div>
                   ))}
             </div>
+             {!announcementsLoading && announcements?.length === 0 && (
+                <div className="text-center py-10 text-muted-foreground">
+                    Tidak ada pengumuman saat ini.
+                </div>
+            )}
           </CardContent>
         </Card>
         <Card>
