@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -263,3 +264,11 @@ export default function ItPage() {
              <div className="text-center py-10 text-muted-foreground">
                 Tidak ada tiket bantuan saat ini.
             </div>
+          )}
+        </CardContent>
+      </Card>
+    </main>
+  );
+}
+
+    

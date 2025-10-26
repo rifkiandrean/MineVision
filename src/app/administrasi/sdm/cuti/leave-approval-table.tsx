@@ -165,3 +165,5 @@ export function LeaveApprovalTable({ onPrint }: LeaveApprovalTableProps) {
     </div>
   );
 }
+
+    
