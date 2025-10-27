@@ -2,42 +2,47 @@
  * @fileoverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset enforces a hybrid security model, combining user-ownership for certain collections (like `/users/{userId}`) with public read access for collections intended for broad consumption (like KPI, Announcements, and Production Status). It also includes some role-based access control for collections related to payroll, performance reviews, and attendance records.
+ * This ruleset enforces a mixed security model, with some collections being publicly readable,
+ * some restricted to authenticated users, and others further restricted based on user roles or ownership.
  *
  * Data Structure:
- * The data is organized into top-level collections, primarily segregated by department (e.g., `produksi`, `geologi`, `keuangan`). A `users` collection stores user profiles, and other collections support cross-departmental functionality.
+ * The database is organized into top-level collections, primarily segmented by department
+ * (e.g., `produksi`, `geologi`, `k3l`). Some collections like `users` and `helpdeskTickets` have specific access rules.
  *
  * Key Security Decisions:
- * - Users can only read their own user document.
- * - Data for the main dashboard (KPIs, announcements, production status) is publicly readable.
- * - Collections associated with payroll and HR are protected by role-based access, allowing only certain departments to read/write.
- * - Data validation is relaxed to allow for rapid prototyping.
+ * - Collections like `produksi`, `geologi`, etc., are publicly readable but not writable.
+ * - The `users` collection allows any authenticated user to read.
+ * - The `payrollRuns`, `employeeSalaries`, `performanceReviews`, `employeeObjectives`, and `attendanceRecords`
+ *   collections are restricted to users with 'Super Admin', 'Admin', or 'Manager' departments.
+ * - The `payslips` collection can be read by the owning user or 'Super Admin', 'Admin', or 'Manager' departments.
+ * - All write operations are explicitly controlled.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read their own user document.
+     * @description Allows any authenticated user to read user data, but only allows a user to create their own record.
      * @path /users/{userId}
-     * @allow (get, list) if request.auth != null
-     * @deny (create, update, delete) Always deny.
-     * @principle Enforces user-level access control.
+     * @allow (read): if request.auth != null
+     * @allow (create): if request.auth.uid == userId
+     * @deny (update, delete): Always. Only the system can modify user records.
+     * @principle Restricts writes on the user object after creation.
      */
     match /users/{userId} {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if false;
+      allow create: if isOwner(userId);
       allow update: if false;
       allow delete: if false;
     }
 
     /**
-     * @description Allows anyone to read KPI documents.
+     * @description Allows public read access to KPI data. Writes are not allowed.
      * @path /kpi/{kpiId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the kpi collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /kpi/{kpiId} {
       allow get: if true;
@@ -48,11 +53,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read announcement documents.
+     * @description Allows public read access to announcement data. Writes are not allowed.
      * @path /announcements/{announcementId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the announcements collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /announcements/{announcementId} {
       allow get: if true;
@@ -63,11 +68,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read production status documents.
+     * @description Allows public read access to production status data. Writes are not allowed.
      * @path /productionStatus/{statusId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the production status collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /productionStatus/{statusId} {
       allow get: if true;
@@ -78,11 +83,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read payment request documents.
+     * @description Allows public read access to payment request data. Writes are not allowed.
      * @path /paymentRequests/{requestId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the payment requests collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /paymentRequests/{requestId} {
       allow get: if true;
@@ -93,11 +98,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read budget documents.
+     * @description Allows public read access to budget data. Writes are not allowed.
      * @path /budgets/{budgetId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the budget collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /budgets/{budgetId} {
       allow get: if true;
@@ -108,11 +113,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows signed-in users to read leave request documents.
+     * @description Allows any authenticated user to read leave request data. Writes are not allowed.
      * @path /leaveRequests/{requestId}
-     * @allow (get, list) if request.auth != null
-     * @deny (create, update, delete) Always deny.
-     * @principle Requires authentication to access leave requests.
+     * @allow (read): if request.auth != null
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Requires authentication for read access.
      */
     match /leaveRequests/{requestId} {
       allow get: if isSignedIn();
@@ -123,11 +128,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read user permissions documents.
+     * @description Allows public read access to user permissions data. Writes are not allowed.
      * @path /userPermissions/{userId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the user permissions collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /userPermissions/{userId} {
       allow get: if true;
@@ -138,11 +143,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read helpdesk ticket documents.
+     * @description Allows public read access to helpdesk ticket data. Writes are not allowed.
      * @path /helpdeskTickets/{ticketId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the helpdesk tickets collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /helpdeskTickets/{ticketId} {
       allow get: if true;
@@ -151,13 +156,13 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if false;
     }
-
+    
     /**
-     * @description Allows anyone to read incident documents.
+     * @description Allows public read access to incidents data. Writes are not allowed.
      * @path /incidents/{incidentId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the incidents collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /incidents/{incidentId} {
       allow get: if true;
@@ -168,11 +173,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read inventory documents.
+     * @description Allows public read access to inventory data. Writes are not allowed.
      * @path /inventory/{itemId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the inventory collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /inventory/{itemId} {
       allow get: if true;
@@ -183,11 +188,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read purchase request documents.
+     * @description Allows public read access to purchase requests data. Writes are not allowed.
      * @path /purchaseRequestsSC/{prId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the purchase requests collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /purchaseRequestsSC/{prId} {
       allow get: if true;
@@ -198,11 +203,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read shipment documents.
+     * @description Allows public read access to shipment data. Writes are not allowed.
      * @path /shipments/{shipmentId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the shipments collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /shipments/{shipmentId} {
       allow get: if true;
@@ -213,11 +218,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read asset documents.
+     * @description Allows public read access to asset data. Writes are not allowed.
      * @path /assets/{assetId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the assets collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /assets/{assetId} {
       allow get: if true;
@@ -228,11 +233,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read maintenance task documents.
+     * @description Allows public read access to maintenance task data. Writes are not allowed.
      * @path /maintenanceTasks/{taskId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the maintenance tasks collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /maintenanceTasks/{taskId} {
       allow get: if true;
@@ -243,11 +248,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read general ledger entry documents.
+     * @description Allows public read access to general ledger data. Writes are not allowed.
      * @path /generalLedger/{entryId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the general ledger entry collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /generalLedger/{entryId} {
       allow get: if true;
@@ -258,11 +263,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read invoice documents.
+     * @description Allows public read access to invoice data. Writes are not allowed.
      * @path /invoices/{invoiceId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the invoice collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /invoices/{invoiceId} {
       allow get: if true;
@@ -273,11 +278,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read bill documents.
+     * @description Allows public read access to bill data. Writes are not allowed.
      * @path /bills/{billId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the bill collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /bills/{billId} {
       allow get: if true;
@@ -288,11 +293,11 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows anyone to read bank account documents.
+     * @description Allows public read access to bank account data. Writes are not allowed.
      * @path /bankAccounts/{accountId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the bank account collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /bankAccounts/{accountId} {
       allow get: if true;
@@ -301,98 +306,97 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if false;
     }
-
+    
     /**
-     * @description Allows 'Super Admin', 'Admin', and 'Manager' roles to read and write payroll run documents.
+     * @description Allows read and write access to payroll runs data for users with 'Super Admin', 'Admin', or 'Manager' departments.
      * @path /payrollRuns/{runId}
-     * @allow (get, list, create, update, delete) if user's department is 'Super Admin', 'Admin', or 'Manager'.
-     * @principle Enforces role-based access control.
+     * @allow (read, write): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+     * @principle Restricts access based on user department.
      */
     match /payrollRuns/{runId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+        allow get: if isAdminOrManager();
+        allow list: if isAdminOrManager();
+        allow create: if isAdminOrManager();
+        allow update: if isAdminOrManager();
+        allow delete: if isAdminOrManager();
     }
 
     /**
-     * @description Allows 'Super Admin', 'Admin', and 'Manager' roles to read and write employee salary documents.
+     * @description Allows read and write access to employee salaries data for users with 'Super Admin', 'Admin', or 'Manager' departments.
      * @path /employeeSalaries/{userId}
-     * @allow (get, list, create, update, delete) if user's department is 'Super Admin', 'Admin', or 'Manager'.
-     * @principle Enforces role-based access control.
+     * @allow (read, write): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+     * @principle Restricts access based on user department.
      */
     match /employeeSalaries/{userId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+        allow get: if isAdminOrManager();
+        allow list: if isAdminOrManager();
+        allow create: if isAdminOrManager();
+        allow update: if isAdminOrManager();
+        allow delete: if isAdminOrManager();
     }
 
     /**
-     * @description Allows users to read their own payslips and 'Super Admin', 'Admin', and 'Manager' roles to read all payslips.
+     * @description Allows read access to payslips data for the owning user or users with 'Super Admin', 'Admin', or 'Manager' departments.
      * @path /payslips/{payslipId}
-     * @allow (get, list) if request.auth.uid == resource.data.userId or user's department is 'Super Admin', 'Admin', or 'Manager'.
-     * @deny (create, update, delete) Always deny.
-     * @principle Enforces owner-based and role-based access control.
+     * @allow (read): if request.auth.uid == resource.data.userId || get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+     * @principle Restricts access based on user ownership or department.
      */
     match /payslips/{payslipId} {
-      allow get: if isOwner(resource.data.userId) || isAdmin();
-      allow list: if isOwner(resource.data.userId) || isAdmin();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+        allow get: if isOwnerPayslip(resource.data.userId) || isAdminOrManager();
+        allow list: if isAdminOrManager(); // Managers can list all payslips
+        allow create: if false; // Payslips should only be created by the system
+        allow update: if false; // Payslips should be immutable
+        allow delete: if false; // Payslips should not be deleted
     }
 
     /**
-     * @description Allows 'Super Admin', 'Admin', and 'Manager' roles to read and write performance review documents.
+     * @description Allows read and write access to performance reviews data for users with 'Super Admin', 'Admin', or 'Manager' departments.
      * @path /performanceReviews/{reviewId}
-     * @allow (get, list, create, update, delete) if user's department is 'Super Admin', 'Admin', or 'Manager'.
-     * @principle Enforces role-based access control.
+     * @allow (read, write): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+     * @principle Restricts access based on user department.
      */
     match /performanceReviews/{reviewId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+        allow get: if isAdminOrManager();
+        allow list: if isAdminOrManager();
+        allow create: if isAdminOrManager();
+        allow update: if isAdminOrManager();
+        allow delete: if isAdminOrManager();
     }
 
     /**
-     * @description Allows 'Super Admin', 'Admin', and 'Manager' roles to read and write employee objective documents.
+     * @description Allows read and write access to employee objectives data for users with 'Super Admin', 'Admin', or 'Manager' departments.
      * @path /employeeObjectives/{objectiveId}
-     * @allow (get, list, create, update, delete) if user's department is 'Super Admin', 'Admin', or 'Manager'.
-     * @principle Enforces role-based access control.
+     * @allow (read, write): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+     * @principle Restricts access based on user department.
      */
     match /employeeObjectives/{objectiveId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+        allow get: if isAdminOrManager();
+        allow list: if isAdminOrManager();
+        allow create: if isAdminOrManager();
+        allow update: if isAdminOrManager();
+        allow delete: if isAdminOrManager();
     }
 
     /**
-     * @description Allows 'Super Admin', 'Admin', and 'Manager' roles to read and write attendance record documents.
+     * @description Allows read and write access to attendance records data for users with 'Super Admin', 'Admin', or 'Manager' departments.
      * @path /attendanceRecords/{recordId}
-     * @allow (get, list, create, update, delete) if user's department is 'Super Admin', 'Admin', or 'Manager'.
-     * @principle Enforces role-based access control.
+     * @allow (read, write): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+     * @principle Restricts access based on user department.
      */
     match /attendanceRecords/{recordId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+        allow get: if isAdminOrManager();
+        allow list: if isAdminOrManager();
+        allow create: if isAdminOrManager();
+        allow update: if isAdminOrManager();
+        allow delete: if isAdminOrManager();
     }
 
-    /**
-     * @description Allows anyone to read Produksi documents.
+        /**
+     * @description Allows public read access to produksi data. Writes are not allowed.
      * @path /produksi/{produksiId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the produksi collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /produksi/{produksiId} {
       allow get: if true;
@@ -402,12 +406,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /**
-     * @description Allows anyone to read Geologi documents.
+        /**
+     * @description Allows public read access to geologi data. Writes are not allowed.
      * @path /geologi/{geologiId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the geologi collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /geologi/{geologiId} {
       allow get: if true;
@@ -417,12 +421,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /**
-     * @description Allows anyone to read Pengolahan documents.
+            /**
+     * @description Allows public read access to pengolahan data. Writes are not allowed.
      * @path /pengolahan/{pengolahanId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the pengolahan collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /pengolahan/{pengolahanId} {
       allow get: if true;
@@ -432,12 +436,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /**
-     * @description Allows anyone to read K3L documents.
+            /**
+     * @description Allows public read access to k3l data. Writes are not allowed.
      * @path /k3l/{k3lId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the k3l collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /k3l/{k3lId} {
       allow get: if true;
@@ -447,12 +451,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /**
-     * @description Allows anyone to read Keuangan documents.
+            /**
+     * @description Allows public read access to keuangan data. Writes are not allowed.
      * @path /keuangan/{keuanganId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the keuangan collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /keuangan/{keuanganId} {
       allow get: if true;
@@ -462,12 +466,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /**
-     * @description Allows anyone to read SDM documents.
+            /**
+     * @description Allows public read access to sdm data. Writes are not allowed.
      * @path /sdm/{sdmId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the sdm collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /sdm/{sdmId} {
       allow get: if true;
@@ -477,12 +481,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    /**
-     * @description Allows anyone to read IT documents.
+            /**
+     * @description Allows public read access to it data. Writes are not allowed.
      * @path /it/{itId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) Always deny.
-     * @principle Allows public read access for the it collection.
+     * @allow (read): Always.
+     * @deny (create, update, delete): Never. The application lacks an owner field.
+     * @principle Allows public read access.
      */
     match /it/{itId} {
       allow get: if true;
@@ -502,8 +506,12 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function isAdmin() {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+    function isAdminOrManager() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+    }
+
+    function isOwnerPayslip(userId) {
+      return request.auth.uid == userId;
     }
   }
 }
