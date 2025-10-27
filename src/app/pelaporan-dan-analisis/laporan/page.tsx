@@ -24,7 +24,8 @@ const availableReports = [
     title: 'Ringkasan Insiden K3L',
     description: 'Daftar semua insiden, laporan bahaya, dan status investigasi dalam periode tertentu.',
     category: 'K3L',
-    disabled: true,
+    href: '/pelaporan-dan-analisis/laporan/k3l-insiden',
+    disabled: false,
   },
   {
     title: 'Laporan Status Inventaris',
