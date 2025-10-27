@@ -1,470 +1,437 @@
 /**
- * @fileoverview Firestore Security Rules for the MineVision application.
+ * @fileOverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset prioritizes secure access control based on user identity and defined roles.
- * It aims for strong authorization by default while maintaining flexibility for rapid prototyping.
- * Strict validation is applied to relational data, ensuring integrity across documents.
+ * This ruleset prioritizes secure access based on user roles and explicit data ownership where applicable.
+ * It errs on the side of caution, denying access unless explicitly granted. Data shape validation is relaxed
+ * in prototyping mode to allow for rapid schema evolution.
  *
  * Data Structure:
- * The database is structured with top-level collections representing various departments (e.g., `produksi`, `geologi`).
- * Some collections are secured based on user roles (`payrollRuns`, `employeeSalaries`, `payslips`, `performanceReviews`, `employeeObjectives`, `attendanceRecords`).
- * The `/users/{userId}` collection stores user profile data and is secured for owner-only access.
- * Other collections are publicly readable but restricted to owner-only writes (`kpi`, `announcements`, `productionStatus`).
+ * - `/users/{userId}`: Stores user profiles, readable by authenticated users.
+ * - Top-Level Collections (e.g., `/kpi`, `/announcements`, `/helpdeskTickets`): Data for specific entities.
  *
  * Key Security Decisions:
- * - User listing is generally disallowed unless explicitly required and secured.
- * - The rules explicitly deny any write operations that are not authorized.
- * - Read-only collections, if present, have open read permissions (`allow get, list: if true;`).
- * - The default security posture for ambiguous relationships is strict owner-only access.
+ * - No user listing: The rules do not allow listing all users.
+ * - Strict ownership: Write access is generally restricted to document owners or authorized roles.
  *
  * Denormalization for Authorization:
- * To improve security rule performance, data required for authorization decisions is often denormalized directly onto the documents being secured.
- * This avoids the need for costly `get()` operations within the rules.
- *   - Example: The `payslips` collection grants read access based on `request.auth.uid == resource.data.userId`, meaning the `userId` is stored directly on the payslip document.
+ *  The payroll system and other modules use `get()` calls to check user roles and grant access accordingly.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants read access to user profiles and restricts write access to the owner.
+     * @description Allows authenticated users to read their own user document.
      * @path /users/{userId}
-     * @allow (read) User with matching {userId} can read their profile.
-     * @deny (create) User cannot create a profile with a different {userId}.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, list): if request.auth != null
+     * @deny (create, update, delete): always
+     * @principle Enforces read access to user profiles only for authenticated users.
      */
     match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
       allow get: if isSignedIn();
-      allow list: if false;
+      allow list: if false; // Listing all users is not permitted.
       allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if false;
     }
 
     /**
-     * @description Allows public read access to KPI data and restricts write access.
+     * @description Allows anyone to read KPI data. Write access is denied.
      * @path /kpi/{kpiId}
-     * @allow (read) Any user can read KPI data.
-     * @deny (create) Only the owner can create KPI data.
-     * @principle Public read access with owner-only writes.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to KPI data.
      */
     match /kpi/{kpiId} {
       allow get, list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows public read access to announcement data and restricts write access.
+     * @description Allows anyone to read announcement data. Write access is denied.
      * @path /announcements/{announcementId}
-     * @allow (read) Any user can read announcement data.
-     * @deny (create) Only the owner can create announcement data.
-     * @principle Public read access with owner-only writes.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to announcement data.
      */
     match /announcements/{announcementId} {
       allow get, list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows public read access to production status data and restricts write access.
+     * @description Allows anyone to read production status data. Write access is denied.
      * @path /productionStatus/{statusId}
-     * @allow (read) Any user can read production status data.
-     * @deny (create) Only the owner can create production status data.
-     * @principle Public read access with owner-only writes.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to production status data.
      */
     match /productionStatus/{statusId} {
       allow get, list: if true;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to payment request data.
+     * @description Allows anyone to read payment request data. Write access is denied.
      * @path /paymentRequests/{requestId}
-     * @deny (read) No one can read payment request data.
-     * @deny (create) No one can create payment request data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to payment requests.
      */
     match /paymentRequests/{requestId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to budget data.
+     * @description Allows anyone to read budget data. Write access is denied.
      * @path /budgets/{budgetId}
-     * @deny (read) No one can read budget data.
-     * @deny (create) No one can create budget data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to budget data.
      */
     match /budgets/{budgetId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants read access to leave requests for authenticated users and restricts write access.
+     * @description Allows authenticated users to read leave request data. Write access is denied.
      * @path /leaveRequests/{requestId}
-     * @allow (read) Authenticated users can read leave request data.
-     * @deny (create) Only the owner can create leave request data.
-     * @principle Authenticated read access with owner-only writes.
+     * @allow (get, list): if request.auth != null
+     * @deny (create, update, delete): always
+     * @principle Allows read access to leave requests only for authenticated users.
      */
     match /leaveRequests/{requestId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+        function isSignedIn() {
+          return request.auth != null;
+        }
+
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if false;
+        allow update: if false;
+        allow delete: if false;
     }
 
     /**
-     * @description Restricts access to user permissions data.
+     * @description Allows anyone to read user permissions data. Write access is denied.
      * @path /userPermissions/{userId}
-     * @deny (read) No one can read user permissions data.
-     * @deny (create) No one can create user permissions data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to user permissions.
      */
     match /userPermissions/{userId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to helpdesk tickets data.
+     * @description Allows anyone to read helpdesk ticket data. Write access is denied.
      * @path /helpdeskTickets/{ticketId}
-     * @deny (read) No one can read helpdesk tickets data.
-     * @deny (create) No one can create helpdesk tickets data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to helpdesk tickets.
      */
     match /helpdeskTickets/{ticketId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
-    /**
-     * @description Restricts access to incident data.
+        /**
+     * @description Allows anyone to read Incident data. Write access is denied.
      * @path /incidents/{incidentId}
-     * @deny (read) No one can read incident data.
-     * @deny (create) No one can create incident data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to incident reports.
      */
     match /incidents/{incidentId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to inventory data.
+     * @description Allows anyone to read InventoryItem data. Write access is denied.
      * @path /inventory/{itemId}
-     * @deny (read) No one can read inventory data.
-     * @deny (create) No one can create inventory data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to inventory items.
      */
     match /inventory/{itemId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to purchase request data.
+     * @description Allows anyone to read PurchaseRequestSC data. Write access is denied.
      * @path /purchaseRequestsSC/{prId}
-     * @deny (read) No one can read purchase request data.
-     * @deny (create) No one can create purchase request data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to purchase requests.
      */
     match /purchaseRequestsSC/{prId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to shipment data.
+     * @description Allows anyone to read Shipment data. Write access is denied.
      * @path /shipments/{shipmentId}
-     * @deny (read) No one can read shipment data.
-     * @deny (create) No one can create shipment data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to shipment data.
      */
     match /shipments/{shipmentId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to asset data.
+     * @description Allows anyone to read Asset data. Write access is denied.
      * @path /assets/{assetId}
-     * @deny (read) No one can read asset data.
-     * @deny (create) No one can create asset data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to asset data.
      */
     match /assets/{assetId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to maintenance task data.
+     * @description Allows anyone to read MaintenanceTask data. Write access is denied.
      * @path /maintenanceTasks/{taskId}
-     * @deny (read) No one can read maintenance task data.
-     * @deny (create) No one can create maintenance task data.
-     * @principle Strict access control.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to maintenance tasks.
      */
     match /maintenanceTasks/{taskId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
-        /**
-     * @description Restricts access to general ledger data.
+    /**
+     * @description Allows anyone to read GeneralLedgerEntry data. Write access is denied.
      * @path /generalLedger/{entryId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to general ledger entries.
      */
     match /generalLedger/{entryId} {
-        allow get: if false;
-        allow list: if false;
-        allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to invoices data.
+     * @description Allows anyone to read Invoice data. Write access is denied.
      * @path /invoices/{invoiceId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to invoices.
      */
     match /invoices/{invoiceId} {
-        allow get: if false;
-        allow list: if false;
-        allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to bills data.
+     * @description Allows anyone to read Bill data. Write access is denied.
      * @path /bills/{billId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to bills.
      */
     match /bills/{billId} {
-        allow get: if false;
-        allow list: if false;
-        allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Restricts access to bank accounts data.
+     * @description Allows anyone to read BankAccount data. Write access is denied.
      * @path /bankAccounts/{accountId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to bank accounts.
      */
     match /bankAccounts/{accountId} {
-        allow get: if false;
-        allow list: if false;
-        allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Manages access to payroll runs data based on user roles.
+     * @description Allows Super Admins, Admins, and Managers to read and write payroll run data.
      * @path /payrollRuns/{runId}
+     * @allow (get, list, create, update, delete): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager']
+     * @deny: None
+     * @principle Restricts access to payroll run data based on user roles.
      */
     match /payrollRuns/{runId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin();
-        allow update: if isExistingAdmin();
-        allow delete: if isExistingAdmin();
+      function isAuthorized() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+      }
+      allow get, list, create, update, delete: if isAuthorized();
     }
 
     /**
-     * @description Manages access to employee salaries data based on user roles.
+     * @description Allows Super Admins, Admins, and Managers to read and write employee salary data.
      * @path /employeeSalaries/{userId}
+     * @allow (get, list, create, update, delete): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager']
+     * @deny: None
+     * @principle Restricts access to employee salary data based on user roles.
      */
     match /employeeSalaries/{userId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin();
-        allow update: if isExistingAdmin();
-        allow delete: if isExistingAdmin();
+      function isAuthorized() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+      }
+      allow get, list, create, update, delete: if isAuthorized();
     }
 
     /**
-     * @description Allows access to payslips data based on user identity or role.
+     * @description Allows employee to read their own payslip data, and Super Admins, Admins, and Managers to read all payslips.
      * @path /payslips/{payslipId}
+     * @allow (get, list): if request.auth.uid == resource.data.userId || get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager']
+     * @deny (create, update, delete): always
+     * @principle Restricts access to payslip data based on user roles and ownership.
      */
     match /payslips/{payslipId} {
-        allow get: if isOwner(resource.data.userId) || isAdmin();
-        allow list: if isOwner(request.auth.uid) || isAdmin();
-        allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-        allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      function isAuthorizedToRead() {
+        return request.auth.uid == resource.data.userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+      }
+      allow get, list: if isAuthorizedToRead();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Manages access to performance review data based on user roles.
+     * @description Allows Super Admins, Admins, and Managers to read and write performance review data.
      * @path /performanceReviews/{reviewId}
+     * @allow (get, list, create, update, delete): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager']
+     * @deny: None
+     * @principle Restricts access to performance review data based on user roles.
      */
     match /performanceReviews/{reviewId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin();
-        allow update: if isExistingAdmin();
-        allow delete: if isExistingAdmin();
+      function isAuthorized() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+      }
+      allow get, list, create, update, delete: if isAuthorized();
     }
 
-        /**
-     * @description Manages access to employee objectives data based on user roles.
+    /**
+     * @description Allows Super Admins, Admins, and Managers to read and write employee objective data.
      * @path /employeeObjectives/{objectiveId}
+     * @allow (get, list, create, update, delete): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager']
+     * @deny: None
+     * @principle Restricts access to employee objective data based on user roles.
      */
     match /employeeObjectives/{objectiveId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin();
-        allow update: if isExistingAdmin();
-        allow delete: if isExistingAdmin();
+      function isAuthorized() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+      }
+      allow get, list, create, update, delete: if isAuthorized();
     }
 
     /**
-     * @description Manages access to attendance records data based on user roles.
+     * @description Allows Super Admins, Admins, and Managers to read and write attendance record data.
      * @path /attendanceRecords/{recordId}
+     * @allow (get, list, create, update, delete): if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager']
+     * @deny: None
+     * @principle Restricts access to attendance record data based on user roles.
      */
     match /attendanceRecords/{recordId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin();
-        allow update: if isExistingAdmin();
-        allow delete: if isExistingAdmin();
+      function isAuthorized() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+      }
+      allow get, list, create, update, delete: if isAuthorized();
     }
 
     /**
-     * @description Allows public read access to produksi data.
+     * @description Allows anyone to read produksi data. Write access is denied.
      * @path /produksi/{produksiId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to produksi data.
      */
     match /produksi/{produksiId} {
-        allow get, list: if true;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows public read access to geologi data.
+     * @description Allows anyone to read geologi data. Write access is denied.
      * @path /geologi/{geologiId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to geologi data.
      */
     match /geologi/{geologiId} {
-        allow get, list: if true;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows public read access to pengolahan data.
+     * @description Allows anyone to read pengolahan data. Write access is denied.
      * @path /pengolahan/{pengolahanId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to pengolahan data.
      */
     match /pengolahan/{pengolahanId} {
-        allow get, list: if true;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows public read access to k3l data.
+     * @description Allows anyone to read k3l data. Write access is denied.
      * @path /k3l/{k3lId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to k3l data.
      */
     match /k3l/{k3lId} {
-        allow get, list: if true;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows public read access to keuangan data.
+     * @description Allows anyone to read keuangan data. Write access is denied.
      * @path /keuangan/{keuanganId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to keuangan data.
      */
     match /keuangan/{keuanganId} {
-        allow get, list: if true;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows public read access to sdm data.
+     * @description Allows anyone to read sdm data. Write access is denied.
      * @path /sdm/{sdmId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to sdm data.
      */
     match /sdm/{sdmId} {
-        allow get, list: if true;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows public read access to it data.
+     * @description Allows anyone to read it data. Write access is denied.
      * @path /it/{itId}
+     * @allow (get, list): if true
+     * @deny (create, update, delete): always
+     * @principle Allows public read access to it data.
      */
     match /it/{itId} {
-        allow get, list: if true;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
-    }
-
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return isSignedIn() && isOwner(userId) && resource != null;
-    }
-
-    function isAdmin() {
-        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
-    }
-
-    function isExistingAdmin() {
-      return isSignedIn() && isAdmin() && resource != null;
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
   }
 }
