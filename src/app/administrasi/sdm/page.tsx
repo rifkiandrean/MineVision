@@ -54,9 +54,9 @@ const sdmModules = [
         title: "Manajemen Kinerja", 
         description: "Evaluasi KPI dan kinerja karyawan.",
         icon: BarChart,
-        href: "#",
+        href: "/administrasi/sdm/kinerja",
         stats: { value: "Q3", label: "Siklus Evaluasi" },
-        disabled: true,
+        disabled: false,
     },
     { 
         title: "Penjadwalan Kerja", 

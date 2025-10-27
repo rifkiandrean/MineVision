@@ -164,3 +164,21 @@ export type Payslip = {
     netPay: number;
 }
     
+export type EmployeeObjective = {
+    id: string;
+    description: string;
+    target: string;
+    progress: number; // 0-100
+    status: 'On Track' | 'At Risk' | 'Off Track';
+}
+
+export type PerformanceReview = {
+    id: string;
+    reviewId: string;
+    period: string;
+    userId: string;
+    employeeName: string;
+    status: 'Not Started' | 'Self-Assessment' | 'Manager Review' | 'Completed';
+    overallRating: number; // 1-5
+    objectives?: EmployeeObjective[];
+}

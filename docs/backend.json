@@ -689,6 +689,39 @@
         "netPay": { "type": "number" }
       },
       "required": ["payslipId", "runId", "userId", "grossPay", "netPay"]
+    },
+    "EmployeeObjective": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EmployeeObjective",
+      "type": "object",
+      "description": "Represents a single objective or KPI for an employee in a performance review cycle.",
+      "properties": {
+        "description": { "type": "string", "description": "A clear description of the objective." },
+        "target": { "type": "string", "description": "The measurable target for the objective (e.g., '10 Ton/jam', '95%')." },
+        "progress": { "type": "number", "description": "The current progress towards the target, from 0 to 100." },
+        "status": { "type": "string", "enum": ["On Track", "At Risk", "Off Track"], "description": "Current status of the objective." }
+      },
+      "required": ["description", "target", "progress", "status"]
+    },
+    "PerformanceReview": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PerformanceReview",
+      "type": "object",
+      "description": "Represents a performance review cycle for a single employee.",
+      "properties": {
+        "reviewId": { "type": "string", "description": "Unique identifier for the review cycle (e.g., 'Q3-2024')." },
+        "period": { "type": "string", "description": "The time period of the review (e.g., 'Q3 2024')." },
+        "userId": { "type": "string", "description": "The UID of the employee being reviewed." },
+        "employeeName": { "type": "string", "description": "The name of the employee." },
+        "status": { "type": "string", "enum": ["Not Started", "Self-Assessment", "Manager Review", "Completed"], "description": "Current stage of the review process." },
+        "overallRating": { "type": "number", "description": "Final performance rating, from 1 to 5." },
+        "objectives": {
+          "type": "array",
+          "items": { "$ref": "#/backend/entities/EmployeeObjective" },
+          "description": "A list of objectives for this review period."
+        }
+      },
+      "required": ["reviewId", "period", "userId", "employeeName", "status"]
     }
   },
   "auth": {
@@ -881,6 +914,24 @@
         }
       },
       {
+        "path": "/performanceReviews/{reviewId}",
+        "definition": {
+          "entityName": "PerformanceReview",
+          "schema": { "$ref": "#/backend/entities/PerformanceReview" },
+          "description": "Stores performance review data for employees.",
+          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+        }
+      },
+      {
+        "path": "/employeeObjectives/{objectiveId}",
+        "definition": {
+          "entityName": "EmployeeObjective",
+          "schema": { "$ref": "#/backend/entities/EmployeeObjective" },
+          "description": "Stores individual objectives for employees.",
+          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+        }
+      },
+      {
         "path": "/produksi/{produksiId}",
         "definition": {
           "entityName": "Produksi",
@@ -993,6 +1044,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module. Added payroll-related collections: `payrollRuns`, `employeeSalaries`, `payslips`."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module. Added payroll-related collections: `payrollRuns`, `employeeSalaries`, `payslips`. Added performance management collections: `performanceReviews`, `employeeObjectives`."
   }
 }
