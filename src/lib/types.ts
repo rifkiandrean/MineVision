@@ -1,4 +1,10 @@
 
+export type User = {
+    id: string;
+    uid: string;
+    email: string;
+    department: string;
+};
 
 export type PaymentRequest = {
   id: string;
@@ -186,9 +192,9 @@ export type PerformanceReview = {
 export type AttendanceRecord = {
     id: string;
     userId: string;
-    date: string;
+    date: string; // YYYY-MM-DD
     status: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Cuti';
-    checkIn?: string;
-    checkOut?: string;
-    shift?: string;
+    checkIn?: string | null; // ISO 8601
+    checkOut?: string | null; // ISO 8601
+    shift?: string; // e.g., 'S1', 'S2', 'S3'
 }
