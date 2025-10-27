@@ -25,25 +25,24 @@ const availableReports = [
     description: 'Daftar semua insiden, laporan bahaya, dan status investigasi dalam periode tertentu.',
     category: 'K3L',
     href: '/pelaporan-dan-analisis/laporan/k3l-insiden',
-    disabled: false,
   },
   {
     title: 'Laporan Status Inventaris',
     description: 'Stok terkini untuk material kritis seperti bahan bakar dan suku cadang.',
     category: 'Rantai Pasokan',
-    disabled: true,
+    href: '/pelaporan-dan-analisis/laporan/status-inventaris',
   },
   {
     title: 'Laporan Kinerja Keuangan',
-    description: 'Ringkasan pendapatan, pengeluaran, dan anggaran. (Segera Hadir)',
+    description: 'Ringkasan pendapatan, pengeluaran, dan anggaran.',
     category: 'Keuangan',
-    disabled: true,
+    href: '/pelaporan-dan-analisis/laporan/kinerja-keuangan',
   },
     {
     title: 'Laporan Pemeliharaan Aset',
     description: 'Jadwal pemeliharaan preventif, riwayat perbaikan, dan analisis downtime.',
     category: 'Aset',
-    disabled: true,
+    href: '/pelaporan-dan-analisis/laporan/pemeliharaan-aset',
   },
 ];
 
@@ -69,7 +68,7 @@ export default function LaporanKinerjaPage() {
                         <p className="text-sm text-muted-foreground mt-1 max-w-lg">{report.description}</p>
                     </div>
                     <Link href={report.href || '#'} passHref>
-                      <Button disabled={report.disabled}>
+                      <Button disabled={!!report.disabled}>
                           {report.disabled ? 'Segera Hadir' : <><Download className="mr-2 h-4 w-4" /> Buat Laporan</>}
                       </Button>
                     </Link>

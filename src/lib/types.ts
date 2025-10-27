@@ -130,4 +130,16 @@ export type EquipmentStatus = {
   fuel: number;
   productivity: number;
 };
+
+export type MaintenanceTask = {
+    id: string;
+    taskId: string;
+    assetId: string;
+    type: 'Preventive' | 'Corrective';
+    description: string;
+    status: 'Terjadwal' | 'Dalam Pengerjaan' | 'Selesai' | 'Ditunda';
+    scheduledDate?: string;
+    completionDate?: string;
+    downtimeHours?: number;
+};
     
