@@ -632,6 +632,63 @@
         "balance": { "type": "number", "description": "The current balance of the account." }
       },
       "required": ["accountName", "bankName", "balance"]
+    },
+    "EmployeeSalary": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EmployeeSalary",
+      "type": "object",
+      "description": "Stores salary structure for an employee.",
+      "properties": {
+        "userId": { "type": "string" },
+        "baseSalary": { "type": "number" },
+        "allowances": { 
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        }
+      },
+      "required": ["userId", "baseSalary"]
+    },
+    "PayrollRun": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PayrollRun",
+      "type": "object",
+      "description": "Represents a single payroll process for a specific period.",
+      "properties": {
+        "runId": { "type": "string" },
+        "period": { "type": "string" },
+        "payDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Draft", "Processed", "Paid"] },
+        "totalGross": { "type": "number" },
+        "totalDeductions": { "type": "number" },
+        "totalNet": { "type": "number" }
+      },
+      "required": ["runId", "period", "payDate", "status"]
+    },
+    "Payslip": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payslip",
+      "type": "object",
+      "description": "Represents an individual employee's payslip for a specific payroll run.",
+      "properties": {
+        "payslipId": { "type": "string" },
+        "runId": { "type": "string" },
+        "userId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "payPeriod": { "type": "string" },
+        "payDate": { "type": "string", "format": "date" },
+        "baseSalary": { "type": "number" },
+        "allowances": { 
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        },
+        "deductions": { 
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        },
+        "grossPay": { "type": "number" },
+        "netPay": { "type": "number" }
+      },
+      "required": ["payslipId", "runId", "userId", "grossPay", "netPay"]
     }
   },
   "auth": {
@@ -647,7 +704,8 @@
         "definition": {
             "entityName": "User",
             "schema": { "$ref": "#/backend/entities/User" },
-            "description": "Stores user account information, including their role/department."
+            "description": "Stores user account information, including their role/department.",
+            "rules": "allow read: if request.auth != null;"
         }
       },
       {
@@ -695,7 +753,8 @@
         "definition": {
           "entityName": "LeaveRequest",
           "schema": { "$ref": "#/backend/entities/LeaveRequest" },
-          "description": "Stores all employee leave requests."
+          "description": "Stores all employee leave requests.",
+          "rules": "allow read: if request.auth != null;"
         }
       },
       {
@@ -792,6 +851,33 @@
           "entityName": "BankAccount",
           "schema": { "$ref": "#/backend/entities/BankAccount" },
           "description": "Stores company bank account information."
+        }
+      },
+      {
+        "path": "/payrollRuns/{runId}",
+        "definition": {
+          "entityName": "PayrollRun",
+          "schema": { "$ref": "#/backend/entities/PayrollRun" },
+          "description": "Stores historical payroll run data.",
+          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+        }
+      },
+      {
+        "path": "/employeeSalaries/{userId}",
+        "definition": {
+          "entityName": "EmployeeSalary",
+          "schema": { "$ref": "#/backend/entities/EmployeeSalary" },
+          "description": "Stores salary structures for each employee.",
+          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+        }
+      },
+      {
+        "path": "/payslips/{payslipId}",
+        "definition": {
+          "entityName": "Payslip",
+          "schema": { "$ref": "#/backend/entities/Payslip" },
+          "description": "Stores individual payslips for each payroll run.",
+          "rules": "allow read: if request.auth.uid == resource.data.userId || get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
         }
       },
       {
@@ -907,8 +993,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module. Added payroll-related collections: `payrollRuns`, `employeeSalaries`, `payslips`."
   }
 }
-
-    

@@ -142,4 +142,25 @@ export type MaintenanceTask = {
     completionDate?: string;
     downtimeHours?: number;
 };
+
+export type PayrollRun = {
+    id: string;
+    runId: string;
+    period: string;
+    payDate: string;
+    totalGross: number;
+    totalNet: number;
+    status: 'Draft' | 'Processed' | 'Paid';
+}
+
+export type Payslip = {
+    id: string;
+    runId: string;
+    userId: string;
+    employeeName: string;
+    baseSalary: number;
+    allowances: number;
+    deductions: number;
+    netPay: number;
+}
     

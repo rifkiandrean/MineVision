@@ -46,9 +46,9 @@ const sdmModules = [
         title: "Penggajian (Payroll)", 
         description: "Proses perhitungan gaji, tunjangan, dan pajak.",
         icon: Wallet,
-        href: "#",
+        href: "/administrasi/sdm/payroll",
         stats: { value: "Siap Diproses", label: "Periode Ini" },
-        disabled: true,
+        disabled: false,
     },
     { 
         title: "Manajemen Kinerja", 
@@ -133,5 +133,3 @@ export default function SdmDashboardPage() {
     </main>
   );
 }
-
-    
