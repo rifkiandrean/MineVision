@@ -75,12 +75,24 @@ export default function SettingsPage() {
 
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return collection(firestore, 'users');
+    // Query only the current user's document
+    return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
   
-  const { data: userAccounts, isLoading: usersLoading } = useCollection<{id: string; email: string; department: string}>(usersQuery);
+  // Use useDoc to fetch a single user document
+  const { data: currentUserAccount, isLoading: usersLoading } = useDoc<{id: string; email: string; department: string}>(usersQuery);
 
-  const [selectedAccount, setSelectedAccount] = useState<string>('z18z4zzOExSE5EYf3dJf39Fdq0x1');
+  // The userAccounts array will now contain only the current user
+  const userAccounts = currentUserAccount ? [currentUserAccount] : [];
+
+  const [selectedAccount, setSelectedAccount] = useState<string>('');
+
+   useEffect(() => {
+    if (user) {
+      setSelectedAccount(user.uid);
+    }
+  }, [user]);
+
 
   const permissionsDocRef = useMemoFirebase(() => {
     if (!firestore || !selectedAccount) return null;
