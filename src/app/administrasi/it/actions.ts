@@ -2,9 +2,6 @@
 'use server';
 
 import { z } from 'zod';
-import { initializeFirebase } from '@/firebase';
-import { collection, addDoc } from 'firebase/firestore';
-import { revalidatePath } from 'next/cache';
 
 const formSchema = z.object({
   subject: z.string().min(5, 'Subject must be at least 5 characters long.'),
@@ -16,6 +13,12 @@ const formSchema = z.object({
 export type FormState = {
   message: string;
   errors?: Record<string, string | undefined>;
+  data?: {
+    subject: string;
+    priority: 'Low' | 'Medium' | 'High';
+    userId: string;
+    userEmail: string;
+  };
 };
 
 export async function createTicket(prevState: any, formData: FormData): Promise<FormState> {
@@ -37,33 +40,9 @@ export async function createTicket(prevState: any, formData: FormData): Promise<
     };
   }
 
-  try {
-    const { firestore } = initializeFirebase();
-    
-    const ticketsCollection = collection(firestore, 'helpdeskTickets');
-    
-    const newTicket = {
-      subject: validatedFields.data.subject,
-      priority: validatedFields.data.priority,
-      userId: validatedFields.data.userId,
-      userEmail: validatedFields.data.userEmail,
-      status: 'Open' as const,
-      createdAt: new Date().toISOString(),
-      ticketId: Date.now().toString().slice(-6)
-    };
-
-    await addDoc(ticketsCollection, newTicket);
-
-    revalidatePath('/administrasi/it');
-
-    return {
-      message: 'Ticket has been successfully created.',
-    };
-
-  } catch (e: any) {
-    console.error('Failed to create ticket:', e);
-    return {
-      message: 'Error: Could not create ticket in the database.',
-    };
-  }
+  // If validation is successful, return the data to the client to handle submission
+  return {
+    message: 'Validation successful. Submitting ticket...',
+    data: validatedFields.data,
+  };
 }

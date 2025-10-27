@@ -17,7 +17,8 @@ import {
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase } from '@/firebase';
+import { useFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp } from 'firebase/firestore';
 
 const initialState: FormState = {
   message: '',
@@ -44,32 +45,41 @@ interface TicketFormProps {
 }
 
 export function TicketForm({ onTicketCreated }: TicketFormProps) {
-  const { user } = useFirebase();
+  const { user, firestore } = useFirebase();
   const [state, formAction] = useActionState(createTicket, initialState);
   const [priority, setPriority] = useState('Medium');
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    if (!state.message) return;
-
     if (state.message.startsWith('Error')) {
       toast({
         variant: 'destructive',
         title: 'Failed to Create Ticket',
-        description: state.message,
+        description: state.errors ? Object.values(state.errors).join(', ') : state.message,
       });
-    } else {
+    } else if (state.data && firestore) {
+      // Data is valid, now save it from the client
+      const ticketsCollection = collection(firestore, 'helpdeskTickets');
+      const newTicket = {
+        ...state.data,
+        status: 'Open' as const,
+        createdAt: new Date().toISOString(),
+        ticketId: Date.now().toString().slice(-6)
+      };
+      
+      addDocumentNonBlocking(ticketsCollection, newTicket);
+      
       toast({
         title: 'Ticket Submitted',
         description: 'Your helpdesk ticket has been successfully created.',
       });
-      // Close the dialog and reset the form
+
       onTicketCreated();
       formRef.current?.reset();
       setPriority('Medium');
     }
-  }, [state, toast, onTicketCreated]);
+  }, [state, toast, firestore, onTicketCreated]);
 
   return (
     <form ref={formRef} action={formAction} className="space-y-4 pt-4">
