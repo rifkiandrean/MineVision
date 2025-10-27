@@ -1,459 +1,125 @@
-/**
- * @fileoverview Firestore Security Rules for MineVision application.
- *
- * Core Philosophy:
- * This ruleset enforces a role-based access control model for the MineVision application.
- * It uses department roles to control access to various collections.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profile information, including department.
- * - /kpi/{kpiId}: Stores Key Performance Indicators for the dashboard.
- * - /announcements/{announcementId}: Stores global announcements for the dashboard.
- * - /productionStatus/{statusId}: Stores real-time production statuses.
- * - /paymentRequests/{requestId}: Stores payment requests.
- * - /budgets/{budgetId}: Stores budget information.
- * - /leaveRequests/{requestId}: Stores leave requests from employees.
- * - /userPermissions/{userId}: Stores permissions for each user.
- * - /helpdeskTickets/{ticketId}: Stores helpdesk support tickets.
- * - /incidents/{incidentId}: Stores K3L incident and hazard reports.
- * - /inventory/{itemId}: Stores supply chain inventory items.
- * - /purchaseRequestsSC/{prId}: Stores supply chain purchase requests.
- * - /shipments/{shipmentId}: Stores shipment and logistics data.
- * - /assets/{assetId}: Stores company asset information.
- * - /maintenanceTasks/{taskId}: Stores maintenance tasks and history.
- * - /generalLedger/{entryId}: Stores general ledger journal entries.
- * - /invoices/{invoiceId}: Stores accounts receivable invoices.
- * - /bills/{billId}: Stores accounts payable bills from vendors.
- * - /bankAccounts/{accountId}: Stores company bank account information.
- * - /produksi/{produksiId}: Stores production department data.
- * - /geologi/{geologiId}: Stores geology department data.
- * - /pengolahan/{pengolahanId}: Stores processing department data.
- * - /k3l/{k3lId}: Stores K3L department data.
- * - /keuangan/{keuanganId}: Stores finance department data.
- * - /sdm/{sdmId}: Stores HR department data.
- * - /it/{itId}: Stores IT department data.
- *
- * Key Security Decisions:
- * - The rules do not enforce a specific schema.
- * - Read-only access for the department collections (produksi, geologi, etc.).
- * - Strict user-ownership model for user profiles.
- * - No user listing is allowed.
- */
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Allows access to user profile data.
-     * @path /users/{userId}
-     * @allow (read, write) if the user's UID matches the userId.
-     * @deny (read, write) if the user is not authenticated.
-     * @principle Enforces document ownership for writes.
-     */
+    // Helper function to check if a user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Allow authenticated users to read their own user data
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if isSignedIn() && isOwner(userId) && request.resource.data.uid == resource.data.uid;
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow read, write: if request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to read the users collection
+    match /users/{document=**} {
+      allow read: if isAuthenticated();
     }
 
-    /**
-     * @description Allows access to KPI data.
-     * @path /kpi/{kpiId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
-    match /kpi/{kpiId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    /**
-     * @description Allows access to announcement data.
-     * @path /announcements/{announcementId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    // Allow authenticated users to read and create announcements
     match /announcements/{announcementId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
     }
 
-    /**
-     * @description Allows access to production status data.
-     * @path /productionStatus/{statusId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    // Allow authenticated users to read kpi data
+    match /kpi/{kpiId} {
+      allow read: if isAuthenticated();
+    }
+
+    // Allow authenticated users to read productionStatus
     match /productionStatus/{statusId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if isAuthenticated();
     }
 
-     /**
-      * @description Allows access to payment request data.
-      * @path /paymentRequests/{requestId}
-      * @allow (read) to anyone.
-      * @allow (create, update, delete) to authenticated users.
-      * @deny (create, update, delete) if the user is not authenticated.
-      */
+    // Allow authenticated users to manage payment requests
     match /paymentRequests/{requestId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read, update: if isAuthenticated();
+      allow create: if isAuthenticated();
     }
-
-    /**
-     * @description Allows access to budget data.
-     * @path /budgets/{budgetId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    
+    // Allow authenticated users to read budget data
     match /budgets/{budgetId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        allow read: if isAuthenticated();
     }
 
-    /**
-     * @description Allows access to leave request data.
-     * @path /leaveRequests/{requestId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    // Allow authenticated users to manage leave requests
     match /leaveRequests/{requestId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read, update, create: if isAuthenticated();
+    }
+    
+    match /leaveRequests/{document=**} {
+        allow read: if isAuthenticated();
     }
 
-    /**
-     * @description Allows access to user permissions data.
-     * @path /userPermissions/{userId}
-     * @allow (read, write) if the user's UID matches the userId.
-     * @deny (read, write) if the user is not authenticated.
-     * @principle Enforces document ownership for writes.
-     */
+    // Allow users to manage their own permissions document
     match /userPermissions/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isSignedIn() && isOwner(userId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Allow Super Admin to manage all permission documents
+    match /userPermissions/{userId} {
+      allow read, write: if isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department == 'Super Admin';
     }
 
-    /**
-     * @description Allows access to helpdesk ticket data.
-     * @path /helpdeskTickets/{ticketId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    // Allow authenticated users to create tickets
     match /helpdeskTickets/{ticketId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated();
     }
-
-    /**
-     * @description Allows access to incident data.
-     * @path /incidents/{incidentId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    
+    // Allow authenticated users to manage incidents
     match /incidents/{incidentId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        allow create: if isAuthenticated();
+        allow read: if isAuthenticated();
     }
 
-    /**
-     * @description Allows access to inventory data.
-     * @path /inventory/{itemId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    // Allow authenticated users to read inventory
     match /inventory/{itemId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if isAuthenticated();
     }
-
-    /**
-     * @description Allows access to purchase request data.
-     * @path /purchaseRequestsSC/{prId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    
+    // Allow authenticated users to create and read purchase requests
     match /purchaseRequestsSC/{prId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        allow read, create: if isAuthenticated();
     }
-
-    /**
-     * @description Allows access to shipment data.
-     * @path /shipments/{shipmentId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
-    match /shipments/{shipmentId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    /**
-     * @description Allows access to asset data.
-     * @path /assets/{assetId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    
+    // Allow authenticated users to read assets
     match /assets/{assetId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        allow read, create: if isAuthenticated();
     }
-
-    /**
-     * @description Allows access to maintenance task data.
-     * @path /maintenanceTasks/{taskId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    
+    // Allow authenticated users to read maintenance tasks
     match /maintenanceTasks/{taskId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if isAuthenticated();
     }
-
-    /**
-     * @description Allows access to general ledger data.
-     * @path /generalLedger/{entryId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    
+    // Allow authenticated users to read general ledger entries
     match /generalLedger/{entryId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        allow read: if isAuthenticated();
     }
-
-    /**
-     * @description Allows access to invoice data.
-     * @path /invoices/{invoiceId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    
+    // Allow authenticated users to read invoices
     match /invoices/{invoiceId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        allow read: if isAuthenticated();
     }
-
-    /**
-     * @description Allows access to bill data.
-     * @path /bills/{billId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    
+    // Allow authenticated users to read bills
     match /bills/{billId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        allow read: if isAuthenticated();
     }
 
-    /**
-     * @description Allows access to bank account data.
-     * @path /bankAccounts/{accountId}
-     * @allow (read) to anyone.
-     * @allow (create, update, delete) to authenticated users.
-     * @deny (create, update, delete) if the user is not authenticated.
-     */
+    // Allow authenticated users to read bank accounts
     match /bankAccounts/{accountId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+        allow read: if isAuthenticated();
     }
-
-    /**
-     * @description Allows read-only access to produksi data.
-     * @path /produksi/{produksiId}
-     * @allow (read) to anyone.
-     * @deny (create, update, delete) to everyone.
-     */
-    match /produksi/{produksiId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Allows read-only access to geologi data.
-     * @path /geologi/{geologiId}
-     * @allow (read) to anyone.
-     * @deny (create, update, delete) to everyone.
-     */
-    match /geologi/{geologiId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Allows read-only access to pengolahan data.
-     * @path /pengolahan/{pengolahanId}
-     * @allow (read) to anyone.
-     * @deny (create, update, delete) to everyone.
-     */
-    match /pengolahan/{pengolahanId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Allows read-only access to k3l data.
-     * @path /k3l/{k3lId}
-     * @allow (read) to anyone.
-     * @deny (create, update, delete) to everyone.
-     */
-    match /k3l/{k3lId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Allows read-only access to keuangan data.
-     * @path /keuangan/{keuanganId}
-     * @allow (read) to anyone.
-     * @deny (create, update, delete) to everyone.
-     */
-    match /keuangan/{keuanganId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Allows read-only access to sdm data.
-     * @path /sdm/{sdmId}
-     * @allow (read) to anyone.
-     * @deny (create, update, delete) to everyone.
-     */
-    match /sdm/{sdmId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Allows read-only access to it data.
-     * @path /it/{itId}
-     * @allow (read) to anyone.
-     * @deny (create, update, delete) to everyone.
-     */
-    match /it/{itId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+    
+    // Read-only access for other collections for now
+    match /{document=**} {
+      allow read: if true;
     }
   }
 }
