@@ -11,22 +11,26 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
+import Link from 'next/link';
 
 const availableReports = [
   {
     title: 'Laporan Produksi Harian',
     description: 'Ringkasan tonase OB dan batu bara, rasio pengupasan, dan produktivitas alat.',
     category: 'Produksi',
+    href: '/pelaporan-dan-analisis/laporan/produksi-harian',
   },
   {
     title: 'Ringkasan Insiden K3L',
     description: 'Daftar semua insiden, laporan bahaya, dan status investigasi dalam periode tertentu.',
     category: 'K3L',
+    disabled: true,
   },
   {
     title: 'Laporan Status Inventaris',
     description: 'Stok terkini untuk material kritis seperti bahan bakar dan suku cadang.',
     category: 'Rantai Pasokan',
+    disabled: true,
   },
   {
     title: 'Laporan Kinerja Keuangan',
@@ -63,9 +67,11 @@ export default function LaporanKinerjaPage() {
                         </div>
                         <p className="text-sm text-muted-foreground mt-1 max-w-lg">{report.description}</p>
                     </div>
-                    <Button disabled={report.disabled}>
-                        {report.disabled ? 'Segera Hadir' : <><Download className="mr-2 h-4 w-4" /> Buat Laporan</>}
-                    </Button>
+                    <Link href={report.href || '#'} passHref>
+                      <Button disabled={report.disabled}>
+                          {report.disabled ? 'Segera Hadir' : <><Download className="mr-2 h-4 w-4" /> Buat Laporan</>}
+                      </Button>
+                    </Link>
                 </Card>
             ))}
         </CardContent>

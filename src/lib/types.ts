@@ -121,4 +121,13 @@ export type Incident = {
     description: string;
     status: 'Open' | 'Investigasi' | 'Ditutup';
 };
+
+export type EquipmentStatus = {
+  id: string;
+  type: string;
+  status: 'Operasional' | 'Perawatan' | 'Siaga' | 'Rusak';
+  location: string;
+  fuel: number;
+  productivity: number;
+};
     
