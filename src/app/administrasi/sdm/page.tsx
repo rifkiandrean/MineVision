@@ -62,9 +62,9 @@ const sdmModules = [
         title: "Penjadwalan Kerja", 
         description: "Atur jadwal shift dan lacak kehadiran (absensi).",
         icon: CalendarClock,
-        href: "#",
+        href: "/administrasi/sdm/penjadwalan",
         stats: { value: "98.5%", label: "Tingkat Kehadiran" },
-        disabled: true,
+        disabled: false,
     },
 ]
 

@@ -722,6 +722,21 @@
         }
       },
       "required": ["reviewId", "period", "userId", "employeeName", "status"]
+    },
+    "AttendanceRecord": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AttendanceRecord",
+      "type": "object",
+      "description": "Represents a single attendance record for an employee.",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the employee." },
+        "date": { "type": "string", "format": "date", "description": "The date of the attendance record." },
+        "status": { "type": "string", "enum": ["Hadir", "Sakit", "Izin", "Alpa", "Cuti"], "description": "The attendance status." },
+        "checkIn": { "type": "string", "format": "date-time", "description": "Check-in timestamp." },
+        "checkOut": { "type": "string", "format": "date-time", "description": "Check-out timestamp." },
+        "shift": { "type": "string", "description": "The shift code (e.g., S1, S2, S3)." }
+      },
+      "required": ["userId", "date", "status"]
     }
   },
   "auth": {
@@ -932,6 +947,15 @@
         }
       },
       {
+        "path": "/attendanceRecords/{recordId}",
+        "definition": {
+          "entityName": "AttendanceRecord",
+          "schema": { "$ref": "#/backend/entities/AttendanceRecord" },
+          "description": "Stores employee attendance records.",
+          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+        }
+      },
+      {
         "path": "/produksi/{produksiId}",
         "definition": {
           "entityName": "Produksi",
@@ -1044,6 +1068,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module. Added payroll-related collections: `payrollRuns`, `employeeSalaries`, `payslips`. Added performance management collections: `performanceReviews`, `employeeObjectives`."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module. Added payroll-related collections: `payrollRuns`, `employeeSalaries`, `payslips`. Added performance management collections: `performanceReviews`, `employeeObjectives`. Added `attendanceRecords` collection for the work scheduling module."
   }
 }

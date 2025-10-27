@@ -182,3 +182,13 @@ export type PerformanceReview = {
     overallRating: number; // 1-5
     objectives?: EmployeeObjective[];
 }
+
+export type AttendanceRecord = {
+    id: string;
+    userId: string;
+    date: string;
+    status: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Cuti';
+    checkIn?: string;
+    checkOut?: string;
+    shift?: string;
+}
