@@ -75,15 +75,10 @@ export default function SettingsPage() {
 
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // Query only the current user's document
-    return doc(firestore, 'users', user.uid);
+    return collection(firestore, 'users');
   }, [firestore, user]);
   
-  // Use useDoc to fetch a single user document
-  const { data: currentUserAccount, isLoading: usersLoading } = useDoc<{id: string; email: string; department: string}>(usersQuery);
-
-  // The userAccounts array will now contain only the current user
-  const userAccounts = currentUserAccount ? [currentUserAccount] : [];
+  const { data: userAccounts, isLoading: usersLoading } = useCollection<{id: string; email: string; department: string}>(usersQuery);
 
   const [selectedAccount, setSelectedAccount] = useState<string>('');
 
@@ -515,3 +510,5 @@ export default function SettingsPage() {
     </main>
   );
 }
+
+    
