@@ -1,477 +1,467 @@
 /**
- * @fileOverview Firestore Security Rules for MineVision application.
+ * @fileoverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset enforces a combination of ownership-based access for user profiles
- * and public read-only access for department-specific data. Certain collections 
- * require Admin, Manager, or Super Admin roles for write access.
+ * This ruleset enforces a combination of ownership-based and role-based access control.
+ * Users have ownership over their own user documents, while administrative roles
+ * grant broader access to certain collections like payroll and performance data.
+ * Collections intended for public consumption (e.g., KPIs, Announcements) are
+ * readable by all, but writable only by authorized users (if applicable).
  *
  * Data Structure:
- * - `/users/{userId}`: Stores user profile data; accessible only by the owner (the user themselves).
- * - Top-Level Department Collections (`/produksi`, `/geologi`, etc.): Intended for public read-only access.
- * - Payroll-Related Collections (`/payrollRuns`, `/employeeSalaries`, `/payslips`): Restricted to Admin, Manager, or Super Admin roles.
- * - Performance Review-Related Collections (`/performanceReviews`, `/employeeObjectives`): Restricted to Admin, Manager, or Super Admin roles.
- * - Other Top-Level Collections (`/kpi`, `/announcements`, etc.): Open read/write access
+ * - /users/{userId}: Stores user account information, accessible to the user themselves.
+ * - Top-level collections for each department (e.g., /produksi, /geologi)
+ * - Top-level collections for dashboard data (e.g., /kpi, /announcements)
  *
  * Key Security Decisions:
- * - Users can only read and write their own profile data in `/users/{userId}`.
- * - Listing of all users is denied to prevent information disclosure.
- * - Department-specific data collections are publicly readable.
+ * - User listing is implicitly disallowed by not granting list permission on /users.
+ * - Read-only collections (department data) are readable by all.
+ * - Role-based access is implemented for sensitive data like payroll and performance reviews, granting broader access to 'Super Admin', 'Admin', and 'Manager' roles.
  *
  * Denormalization for Authorization:
- * - The `payslips` collection uses a denormalized `userId` field to allow quick validation of ownership.
- *
- * Structural Segregation:
- * - Publicly readable data is stored in top-level collections, separate from user-specific data.
+ *  -  The rules for `payslips` use the `userId` field denormalized onto each payslip document to determine ownership. This avoids costly `get()` operations to the `users` collection.
+ *  - Rules for `payrollRuns`, `employeeSalaries`, `performanceReviews`, `employeeObjectives`, and `attendanceRecords` use role-based access, checking the user's department (role) against the list of allowed departments. This avoids needing to duplicate role data in each of these collections.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures user profile data, allowing only the owner to read and write.
+     * @description Allows users to read and write their own user document.
      * @path /users/{userId}
-     * @allow (read, write) if the request.auth.uid matches the {userId} in the path.
-     *   Example: A user with UID "user123" can read/write the document at /users/user123.
-     * @deny (read, write) if the request.auth.uid does not match the {userId} in the path.
-     *   Example: A user with UID "user456" cannot read/write the document at /users/user123.
+     * @allow (get, create, update, delete) if the user's auth UID matches the userId.
+     * @deny (get, create, update, delete) if the user's auth UID does not match the userId.
      * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
       allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false; // Listing all users is denied.
+      allow list: if false;
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId) && resource != null;
-      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
     /**
-     * @description Secures KPI data, allowing anyone to read and write.
+     * @description Allows anyone to read KPIs. Restrict writes.
      * @path /kpi/{kpiId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /kpi/{kpiId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures announcement data, allowing anyone to read and write.
+     * @description Allows anyone to read Announcements. Restrict writes.
      * @path /announcements/{announcementId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /announcements/{announcementId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures production status data, allowing anyone to read and write.
+     * @description Allows anyone to read ProductionStatus. Restrict writes.
      * @path /productionStatus/{statusId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /productionStatus/{statusId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures payment request data, allowing anyone to read and write.
+     * @description Allows anyone to read PaymentRequests. Restrict writes.
      * @path /paymentRequests/{requestId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /paymentRequests/{requestId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures budget data, allowing anyone to read and write.
+     * @description Allows anyone to read Budgets. Restrict writes.
      * @path /budgets/{budgetId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /budgets/{budgetId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures leave request data, allowing anyone to read and write.
+     * @description Allows anyone to read LeaveRequests. Restrict writes.
      * @path /leaveRequests/{requestId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any authenticated user.
+     * @deny (create, update, delete) all users.
      */
     match /leaveRequests/{requestId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures user permissions data, allowing anyone to read and write.
+     * @description Allows anyone to read UserPermissions. Restrict writes.
      * @path /userPermissions/{userId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /userPermissions/{userId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures helpdesk tickets data, allowing anyone to read and write.
+     * @description Allows anyone to read HelpdeskTickets. Restrict writes.
      * @path /helpdeskTickets/{ticketId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /helpdeskTickets/{ticketId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures K3L incidents data, allowing anyone to read and write.
+     * @description Allows anyone to read Incidents. Restrict writes.
      * @path /incidents/{incidentId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /incidents/{incidentId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures inventory data, allowing anyone to read and write.
+     * @description Allows anyone to read Inventory. Restrict writes.
      * @path /inventory/{itemId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /inventory/{itemId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures purchase request data, allowing anyone to read and write.
+     * @description Allows anyone to read PurchaseRequestsSC. Restrict writes.
      * @path /purchaseRequestsSC/{prId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /purchaseRequestsSC/{prId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures shipment data, allowing anyone to read and write.
+     * @description Allows anyone to read Shipments. Restrict writes.
      * @path /shipments/{shipmentId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /shipments/{shipmentId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures asset data, allowing anyone to read and write.
+     * @description Allows anyone to read Assets. Restrict writes.
      * @path /assets/{assetId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /assets/{assetId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures maintenance task data, allowing anyone to read and write.
+     * @description Allows anyone to read MaintenanceTasks. Restrict writes.
      * @path /maintenanceTasks/{taskId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /maintenanceTasks/{taskId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures general ledger data, allowing anyone to read and write.
+     * @description Allows anyone to read GeneralLedger. Restrict writes.
      * @path /generalLedger/{entryId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /generalLedger/{entryId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures invoice data, allowing anyone to read and write.
+     * @description Allows anyone to read Invoices. Restrict writes.
      * @path /invoices/{invoiceId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /invoices/{invoiceId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures bill data, allowing anyone to read and write.
+     * @description Allows anyone to read Bills. Restrict writes.
      * @path /bills/{billId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /bills/{billId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures bank account data, allowing anyone to read and write.
+     * @description Allows anyone to read BankAccounts. Restrict writes.
      * @path /bankAccounts/{accountId}
-     * @allow (read, write) Allow all read and write requests.
-     * @principle Public data with no restrictions.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /bankAccounts/{accountId} {
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Secures payroll run data, restricting access to Admin, Manager, or Super Admin roles.
+     * @description Allows read and write access to PayrollRuns for Super Admin, Admin, and Manager roles.
      * @path /payrollRuns/{runId}
-     * @allow (read, write) Allow all read and write requests if the user has an Admin, Manager, or Super Admin role.
-     * @principle Role-based access control.
+     * @allow (get, list, create, update, delete) if the user's department is Super Admin, Admin, or Manager.
+     * @deny (get, list, create, update, delete) if the user's department is not Super Admin, Admin, or Manager.
+     * @principle Role-based access control for sensitive data.
      */
     match /payrollRuns/{runId} {
-      allow get, list: if isAdminManagerOrSuperAdmin();
-      allow create: if isAdminManagerOrSuperAdmin();
-      allow update: if isAdminManagerOrSuperAdmin() && resource != null;
-      allow delete: if isAdminManagerOrSuperAdmin() && resource != null;
+      allow get: if isSignedIn() && hasAdminRole();
+      allow list: if isSignedIn() && hasAdminRole();
+      allow create: if isSignedIn() && hasAdminRole();
+      allow update: if isSignedIn() && hasAdminRole() && resource != null;
+      allow delete: if isSignedIn() && hasAdminRole() && resource != null;
     }
 
     /**
-     * @description Secures employee salary data, restricting access to Admin, Manager, or Super Admin roles.
+     * @description Allows read and write access to EmployeeSalaries for Super Admin, Admin, and Manager roles.
      * @path /employeeSalaries/{userId}
-     * @allow (read, write) Allow all read and write requests if the user has an Admin, Manager, or Super Admin role.
-     * @principle Role-based access control.
+     * @allow (get, list, create, update, delete) if the user's department is Super Admin, Admin, or Manager.
+     * @deny (get, list, create, update, delete) if the user's department is not Super Admin, Admin, or Manager.
+     * @principle Role-based access control for sensitive data.
      */
     match /employeeSalaries/{userId} {
-      allow get, list: if isAdminManagerOrSuperAdmin();
-      allow create: if isAdminManagerOrSuperAdmin();
-      allow update: if isAdminManagerOrSuperAdmin() && resource != null;
-      allow delete: if isAdminManagerOrSuperAdmin() && resource != null;
+      allow get: if isSignedIn() && hasAdminRole();
+      allow list: if isSignedIn() && hasAdminRole();
+      allow create: if isSignedIn() && hasAdminRole();
+      allow update: if isSignedIn() && hasAdminRole() && resource != null;
+      allow delete: if isSignedIn() && hasAdminRole() && resource != null;
     }
 
     /**
-     * @description Secures payslip data, allowing access to the owner or users with Admin, Manager, or Super Admin roles.
+     * @description Allows read access to Payslips for the owner or Super Admin, Admin, and Manager roles.
      * @path /payslips/{payslipId}
-     * @allow (read) Allow read access to the owner or users with Admin, Manager, or Super Admin roles.
-     * @principle Ownership-based access control with role-based override.
+     * @allow (get, list) if the user is the owner (userId matches) or the user's department is Super Admin, Admin, or Manager.
+     * @deny (get, list) if the user is not the owner and the user's department is not Super Admin, Admin, or Manager.
+     * @principle Ownership-based and role-based access control for sensitive data.
      */
     match /payslips/{payslipId} {
-      allow get: if isPayslipOwner() || isAdminManagerOrSuperAdmin();
-      allow list: if false;
-      allow create: if false; // no one can create a payslip directly
-      allow update: if false; // no one can update a payslip directly
-      allow delete: if false; // no one can delete a payslip directly
+      allow get: if isSignedIn() && (isOwner(resource.data.userId) || hasAdminRole());
+      allow list: if isSignedIn() && hasAdminRole();
+      allow create, update, delete: if false; // Payslips should only be created by backend logic, not directly by users.
     }
 
     /**
-     * @description Secures performance review data, restricting access to Admin, Manager, or Super Admin roles.
+     * @description Allows read and write access to PerformanceReviews for Super Admin, Admin, and Manager roles.
      * @path /performanceReviews/{reviewId}
-     * @allow (read, write) Allow all read and write requests if the user has an Admin, Manager, or Super Admin role.
-     * @principle Role-based access control.
+     * @allow (get, list, create, update, delete) if the user's department is Super Admin, Admin, or Manager.
+     * @deny (get, list, create, update, delete) if the user's department is not Super Admin, Admin, or Manager.
+     * @principle Role-based access control for sensitive data.
      */
     match /performanceReviews/{reviewId} {
-      allow get, list: if isAdminManagerOrSuperAdmin();
-      allow create: if isAdminManagerOrSuperAdmin();
-      allow update: if isAdminManagerOrSuperAdmin() && resource != null;
-      allow delete: if isAdminManagerOrSuperAdmin() && resource != null;
+      allow get: if isSignedIn() && hasAdminRole();
+      allow list: if isSignedIn() && hasAdminRole();
+      allow create: if isSignedIn() && hasAdminRole();
+      allow update: if isSignedIn() && hasAdminRole() && resource != null;
+      allow delete: if isSignedIn() && hasAdminRole() && resource != null;
     }
 
     /**
-     * @description Secures employee objective data, restricting access to Admin, Manager, or Super Admin roles.
+     * @description Allows read and write access to EmployeeObjectives for Super Admin, Admin, and Manager roles.
      * @path /employeeObjectives/{objectiveId}
-     * @allow (read, write) Allow all read and write requests if the user has an Admin, Manager, or Super Admin role.
-     * @principle Role-based access control.
+     * @allow (get, list, create, update, delete) if the user's department is Super Admin, Admin, or Manager.
+     * @deny (get, list, create, update, delete) if the user's department is not Super Admin, Admin, or Manager.
+     * @principle Role-based access control for sensitive data.
      */
     match /employeeObjectives/{objectiveId} {
-      allow get, list: if isAdminManagerOrSuperAdmin();
-      allow create: if isAdminManagerOrSuperAdmin();
-      allow update: if isAdminManagerOrSuperAdmin() && resource != null;
-      allow delete: if isAdminManagerOrSuperAdmin() && resource != null;
+      allow get: if isSignedIn() && hasAdminRole();
+      allow list: if isSignedIn() && hasAdminRole();
+      allow create: if isSignedIn() && hasAdminRole();
+      allow update: if isSignedIn() && hasAdminRole() && resource != null;
+      allow delete: if isSignedIn() && hasAdminRole() && resource != null;
     }
 
     /**
-     * @description Secures attendance record data, restricting access to Admin, Manager, or Super Admin roles.
+     * @description Allows read and write access to AttendanceRecords for Super Admin, Admin, and Manager roles.
      * @path /attendanceRecords/{recordId}
-     * @allow (read, write) Allow all read and write requests if the user has an Admin, Manager, or Super Admin role.
-     * @principle Role-based access control.
+     * @allow (get, list, create, update, delete) if the user's department is Super Admin, Admin, or Manager.
+     * @deny (get, list, create, update, delete) if the user's department is not Super Admin, Admin, or Manager.
+     * @principle Role-based access control for sensitive data.
      */
     match /attendanceRecords/{recordId} {
-      allow get, list: if isAdminManagerOrSuperAdmin();
-      allow create: if isAdminManagerOrSuperAdmin();
-      allow update: if isAdminManagerOrSuperAdmin() && resource != null;
-      allow delete: if isAdminManagerOrSuperAdmin() && resource != null;
+      allow get: if isSignedIn() && hasAdminRole();
+      allow list: if isSignedIn() && hasAdminRole();
+      allow create: if isSignedIn() && hasAdminRole();
+      allow update: if isSignedIn() && hasAdminRole() && resource != null;
+      allow delete: if isSignedIn() && hasAdminRole() && resource != null;
     }
-    
+
     /**
-     * @description Secures produksi data, allowing anyone to read.
+     * @description Allows anyone to read Produksi. Restrict writes.
      * @path /produksi/{produksiId}
-     * @allow (read) Allow all read requests.
-     * @deny (write) Deny all write requests.
-     * @principle Public read-only data.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /produksi/{produksiId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
-    
+
     /**
-     * @description Secures geologi data, allowing anyone to read.
+     * @description Allows anyone to read Geologi. Restrict writes.
      * @path /geologi/{geologiId}
-     * @allow (read) Allow all read requests.
-     * @deny (write) Deny all write requests.
-     * @principle Public read-only data.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /geologi/{geologiId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
-    
+
     /**
-     * @description Secures pengolahan data, allowing anyone to read.
+     * @description Allows anyone to read Pengolahan. Restrict writes.
      * @path /pengolahan/{pengolahanId}
-     * @allow (read) Allow all read requests.
-     * @deny (write) Deny all write requests.
-     * @principle Public read-only data.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /pengolahan/{pengolahanId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
-    
+
     /**
-     * @description Secures k3l data, allowing anyone to read.
+     * @description Allows anyone to read K3L. Restrict writes.
      * @path /k3l/{k3lId}
-     * @allow (read) Allow all read requests.
-     * @deny (write) Deny all write requests.
-     * @principle Public read-only data.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /k3l/{k3lId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
-    
+
     /**
-     * @description Secures keuangan data, allowing anyone to read.
+     * @description Allows anyone to read Keuangan. Restrict writes.
      * @path /keuangan/{keuanganId}
-     * @allow (read) Allow all read requests.
-     * @deny (write) Deny all write requests.
-     * @principle Public read-only data.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /keuangan/{keuanganId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
-    
+
     /**
-     * @description Secures sdm data, allowing anyone to read.
+     * @description Allows anyone to read SDM. Restrict writes.
      * @path /sdm/{sdmId}
-     * @allow (read) Allow all read requests.
-     * @deny (write) Deny all write requests.
-     * @principle Public read-only data.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /sdm/{sdmId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
-    
+
     /**
-     * @description Secures it data, allowing anyone to read.
+     * @description Allows anyone to read IT. Restrict writes.
      * @path /it/{itId}
-     * @allow (read) Allow all read requests.
-     * @deny (write) Deny all write requests.
-     * @principle Public read-only data.
+     * @allow (get, list) any unauthenticated user.
+     * @deny (create, update, delete) all users.
+     * @principle Public read, restricted write.
      */
     match /it/{itId} {
       allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
-    // Helper functions
+    //------------------- Helper functions -------------------
+
+    /**
+     * @description Checks if the user is signed in.
+     * @returns {boolean} True if the user is signed in, false otherwise.
+     */
     function isSignedIn() {
       return request.auth != null;
     }
 
+    /**
+     * @description Checks if the user is the owner of the document.
+     * @param {string} userId - The user ID to check against.
+     * @returns {boolean} True if the user is the owner, false otherwise.
+     */
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    function isAdminManagerOrSuperAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+    /**
+     * @description Checks if the user is the owner of the existing document.
+     * @param {string} userId - The user ID to check against.
+     * @returns {boolean} True if the user is the owner and the document exists, false otherwise.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
     }
 
-    function isPayslipOwner() {
-      return isSignedIn() && request.auth.uid == resource.data.userId;
+      /**
+       * @description Checks if the authenticated user has an admin role (Super Admin, Admin, or Manager).
+       * @returns {bool} True if the user has an admin role, false otherwise.
+       */
+    function hasAdminRole() {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
     }
   }
 }
