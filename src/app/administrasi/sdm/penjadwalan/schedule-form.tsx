@@ -61,7 +61,7 @@ export function ScheduleForm({ users, onScheduleCreated }: ScheduleFormProps) {
   const [userId, setUserId] = useState<string>('');
   const [date, setDate] = useState<DateRange | undefined>();
   const [shift, setShift] = useState<string>('');
-  const [status, setStatus] = useState<'Hadir' | 'Cuti'>('Hadir');
+  const [status, setStatus] = useState<'Hadir' | 'Cuti' | 'Libur'>('Hadir');
 
   useEffect(() => {
     if (state.message.startsWith('Error')) {
@@ -74,14 +74,16 @@ export function ScheduleForm({ users, onScheduleCreated }: ScheduleFormProps) {
         const attendanceCollection = collection(firestore, 'attendanceRecords');
         const { userId, dates, shift, status } = state.data;
 
+        // Firestore write operations are initiated here
         const promises = dates.map(d => {
             const newRecord = {
                 userId,
-                date: d.toISOString().split('T')[0], // YYYY-MM-DD
+                date: format(d, 'yyyy-MM-dd'), // Format date to YYYY-MM-DD string
                 shift,
                 status,
                 ...(status === 'Hadir' && { checkIn: null, checkOut: null })
             };
+            // Uses a non-blocking function to save to Firestore
             return addDocumentNonBlocking(attendanceCollection, newRecord);
         });
 
@@ -90,8 +92,9 @@ export function ScheduleForm({ users, onScheduleCreated }: ScheduleFormProps) {
                 title: 'Jadwal Dibuat',
                 description: `Jadwal baru untuk ${dates.length} hari telah berhasil ditambahkan.`,
             });
-            onScheduleCreated();
-        }).catch(() => {
+            onScheduleCreated(); // Close the dialog on success
+        }).catch((err) => {
+             console.error("Error saving schedule: ", err);
              toast({
                 variant: 'destructive',
                 title: 'Gagal Menyimpan Jadwal',
@@ -182,13 +185,14 @@ export function ScheduleForm({ users, onScheduleCreated }: ScheduleFormProps) {
              <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <input type="hidden" name="status" value={status} />
-                <Select value={status} onValueChange={(v) => setStatus(v as 'Hadir' | 'Cuti')}>
+                <Select value={status} onValueChange={(v) => setStatus(v as 'Hadir' | 'Cuti' | 'Libur')}>
                     <SelectTrigger id="status">
                         <SelectValue placeholder="Pilih Status" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="Hadir">Hadir (Hari Kerja)</SelectItem>
-                        <SelectItem value="Cuti">Cuti (Hari Libur)</SelectItem>
+                        <SelectItem value="Libur">Libur (Hari Libur)</SelectItem>
+                        <SelectItem value="Cuti">Cuti</SelectItem>
                     </SelectContent>
                 </Select>
                 {state.errors?.status && <p className="text-sm text-destructive">{state.errors.status[0]}</p>}

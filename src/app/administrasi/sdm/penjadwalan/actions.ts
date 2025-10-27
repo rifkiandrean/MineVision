@@ -16,7 +16,7 @@ const FormSchema = z.object({
       path: ['to'],
     }),
   shift: z.string().min(1, { message: 'Shift harus dipilih.' }),
-  status: z.enum(['Hadir', 'Sakit', 'Izin', 'Alpa', 'Cuti']),
+  status: z.enum(['Hadir', 'Sakit', 'Izin', 'Alpa', 'Cuti', 'Libur']),
 });
 
 export type FormState = {
@@ -31,7 +31,7 @@ export type FormState = {
     userId: string,
     dates: Date[],
     shift: string,
-    status: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Cuti',
+    status: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa' | 'Cuti' | 'Libur',
   }
 };
 
@@ -60,7 +60,8 @@ export async function createSchedule(
       message: 'Error: Harap periksa kembali isian Anda.',
       errors: {
           userId: fieldErrors.userId,
-          dateRange: fieldErrors.dateRange?.map(e => e.toString()), // Convert object errors to string array
+          // Convert object errors to string array for consistent handling
+          dateRange: fieldErrors.dateRange ? [String(fieldErrors.dateRange?._errors), String(fieldErrors.dateRange?.from?._errors), String(fieldErrors.dateRange?.to?._errors)].filter(Boolean) : undefined,
           shift: fieldErrors.shift,
           status: fieldErrors.status,
       },
