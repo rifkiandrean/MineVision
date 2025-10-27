@@ -15,10 +15,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection } from 'firebase/firestore';
 
 const initialState: FormState = {
   message: '',
@@ -45,44 +43,34 @@ interface TicketFormProps {
 }
 
 export function TicketForm({ onTicketCreated }: TicketFormProps) {
-  const { user, firestore } = useFirebase();
   const [state, formAction] = useActionState(createTicket, initialState);
   const [priority, setPriority] = useState('Medium');
   const { toast } = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
+    if (!state.message) return;
+
     if (state.message.startsWith('Error')) {
       toast({
         variant: 'destructive',
         title: 'Failed to Create Ticket',
         description: state.message,
       });
-    } else if (state.data && firestore) {
-      // Data is valid, now save it from the client
-      const ticketsCollection = collection(firestore, 'helpdeskTickets');
-      const newTicket = {
-        ...state.data,
-        userId: user?.uid || 'unknown',
-        userEmail: user?.email || 'unknown',
-        status: 'Open' as const,
-        createdAt: new Date().toISOString(),
-        ticketId: Date.now().toString().slice(-6) // Simple sequential-like ID
-      };
-      
-      addDocumentNonBlocking(ticketsCollection, newTicket);
-      
+    } else {
       toast({
         title: 'Ticket Submitted',
         description: 'Your helpdesk ticket has been successfully created.',
       });
-
-      // Close the dialog
+      // Close the dialog and reset the form
       onTicketCreated();
+      formRef.current?.reset();
+      setPriority('Medium');
     }
-  }, [state, toast, firestore, user, onTicketCreated]);
+  }, [state, toast, onTicketCreated]);
 
   return (
-    <form action={formAction} className="space-y-4 pt-4">
+    <form ref={formRef} action={formAction} className="space-y-4 pt-4">
        <div className="space-y-2">
         <Label htmlFor="subject">Subject</Label>
         <Textarea
