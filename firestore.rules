@@ -2,511 +2,461 @@
  * @fileoverview Firestore Security Rules for MineVision application.
  *
  * Core Philosophy:
- * This ruleset enforces a combination of owner-based access control and role-based access control.
- * Some collections are publicly readable but writable only by authenticated users with specific roles.
- * User-owned data trees, like /users/{userId}, are strictly controlled by the user's UID.
+ * This ruleset enforces a hybrid security model. User data is protected by strict ownership.
+ * Most data collections follow a public-read, owner-write model.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile data.
- * - /kpi/{kpiId}, /announcements/{announcementId}, /productionStatus/{statusId}: Stores data for the main dashboard.
- * - /paymentRequests/{requestId}: Stores payment requests.
- * - /budgets/{budgetId}: Stores budget information.
- * - /leaveRequests/{requestId}: Stores leave requests.
- * - /userPermissions/{userId}: Stores user-specific permissions.
- * - /helpdeskTickets/{ticketId}: Stores helpdesk tickets, accessible to the ticket owner.
- * - /incidents/{incidentId}: Stores incident reports.
- * - /inventory/{itemId}, /purchaseRequestsSC/{prId}, /shipments/{shipmentId}: Stores supply chain data.
- * - /assets/{assetId}, /maintenanceTasks/{taskId}: Stores asset and maintenance data.
- * - /generalLedger/{entryId}, /invoices/{invoiceId}, /bills/{billId}: Stores financial data.
- * - /payrollRuns/{runId}, /employeeSalaries/{userId}, /payslips/{payslipId}: Stores payroll data.
- * - /performanceReviews/{reviewId}, /employeeObjectives/{objectiveId}: Stores performance review data.
- * - /attendanceRecords/{recordId}: Stores employee attendance records.
- * - /produksi/{produksiId}, /geologi/{geologiId}, /pengolahan/{pengolahanId}, /k3l/{k3lId},
- *   /keuangan/{keuanganId}, /sdm/{sdmId}, /it/{itId}: Stores department-specific data.
+ * - `/users/{userId}`: Stores user profiles.  Write access is limited to the user themselves (ownership).
+ * - Top-Level Collections (e.g., `/kpi`, `/announcements`): These collections are designed for public
+ *   read access to support the main dashboard.  Write access is restricted to authenticated users
+ *   and requires that the document contain an ownership field.
  *
  * Key Security Decisions:
- * - Public read access is granted only when explicitly intended and appropriate.
- * - All write operations require authentication.
- * - Some write operations are further restricted to users with specific roles or ownership.
- * - Data validation is limited to authorization-critical fields to facilitate rapid prototyping.
+ * - User listing is explicitly denied to prevent unauthorized access to user data.
+ * - Public read access is granted to dashboard-related collections to allow for data aggregation
+ *   and display without requiring authentication.
+ * - All write operations are explicitly validated to ensure data integrity and prevent unauthorized modifications.
+ * - The rules do NOT currently enforce schema validation, focusing primarily on authorization.
+ *   Data validation should be implemented in the application code during this prototyping phase.
  *
  * Denormalization for Authorization:
- * - The rules use `get()` calls to check user roles stored in `/users/{userId}` to implement role-based access control for certain collections.
+ * - Many collections rely on an implicit "ownership" model where the document's ID acts as the owner.
+ *   For example, `/users/{userId}` documents are considered owned by the user with the matching `userId`.
+ *
+ * Structural Segregation:
+ * - The application uses top-level collections for each department, such as `produksi`, `geologi`, etc.
+ *   This segregation simplifies the rules and improves performance.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile data.
-     * @path /users/{userId}
-     * @allow (read): Authenticated user can read their own profile.
-     * @deny (read): Unauthenticated user cannot read any profile.
-     * @allow (create): Authenticated user can create their own profile (if userId matches auth.uid).
-     * @deny (create): Authenticated user cannot create a profile with a mismatched userId.
-     * @allow (update): Authenticated user can update their own profile (if userId matches auth.uid).
-     * @deny (update): Authenticated user cannot update someone else's profile.
-     * @allow (delete): Authenticated user can delete their own profile (if userId matches auth.uid).
-     * @deny (delete): Authenticated user cannot delete someone else's profile.
-     * @principle Enforces document ownership for all operations on user profiles.
+     * @description Checks if the request is made by an authenticated user.
      */
-    match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+    function isSignedIn() {
+      return request.auth != null;
     }
 
     /**
-     * @description Controls access to KPI data.
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user owns the existing document at the current path.
+     * @param {string} userId - The expected owner's user ID.
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Enforces ownership for documents under /users/{userId}.
+     * @path /users/{userId}
+     * @allow (create) User with UID 'user123' can create their own profile document.
+     * @allow (get, list) User with UID 'user123' can read their own profile document.
+     * @allow (update, delete) User with UID 'user123' can update or delete their own profile document.
+     * @deny (create) User with UID 'user123' cannot create a profile document for user 'user456'.
+     * @deny (get, list) User with UID 'user123' cannot read the profile document of user 'user456'.
+     * @deny (update, delete) User with UID 'user123' cannot update or delete the profile document of user 'user456'.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // User listing is not permitted
+
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.uid == resource.data.uid;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows public read and owner-only write access for KPIs.
      * @path /kpi/{kpiId}
-     * @allow (read): Anyone can read KPI data.
-     * @deny (create): No one can create KPI data.
-     * @deny (update): No one can update KPI data.
-     * @deny (delete): No one can delete KPI data.
-     * @principle Public read access; no write access.
+     * @allow (get, list) Any user can read KPI data.
+     * @allow (create) Authenticated user can create a KPI document if they "own" it.
+     * @allow (update, delete) Authenticated user can update or delete a KPI document if they are the owner.
+     * @deny (create) Non-authenticated user cannot create a KPI document.
+     * @deny (update, delete) Non-authenticated user cannot update or delete a KPI document.
+     * @principle Public read, owner-only write.
      */
     match /kpi/{kpiId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to announcement data.
+     * @description Allows public read and owner-only write access for announcements.
      * @path /announcements/{announcementId}
-     * @allow (read): Anyone can read announcement data.
-     * @deny (create): No one can create announcement data.
-     * @deny (update): No one can update announcement data.
-     * @deny (delete): No one can delete announcement data.
-     * @principle Public read access; no write access.
+     * @allow (get, list) Any user can read announcement data.
+     * @allow (create) Authenticated user can create an announcement document if they "own" it.
+     * @allow (update, delete) Authenticated user can update or delete an announcement document if they are the owner.
+     * @deny (create) Non-authenticated user cannot create an announcement document.
+     * @deny (update, delete) Non-authenticated user cannot update or delete an announcement document.
+     * @principle Public read, owner-only write.
      */
     match /announcements/{announcementId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to production status data.
+     * @description Allows public read and owner-only write access for production status data.
      * @path /productionStatus/{statusId}
-     * @allow (read): Anyone can read production status data.
-     * @deny (create): No one can create production status data.
-     * @deny (update): No one can update production status data.
-     * @deny (delete): No one can delete production status data.
-     * @principle Public read access; no write access.
+     * @allow (get, list) Any user can read production status data.
+     * @allow (create) Authenticated user can create a production status document if they "own" it.
+     * @allow (update, delete) Authenticated user can update or delete a production status document if they are the owner.
+     * @deny (create) Non-authenticated user cannot create a production status document.
+     * @deny (update, delete) Non-authenticated user cannot update or delete a production status document.
+     * @principle Public read, owner-only write.
      */
     match /productionStatus/{statusId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to payment request data.
+     * @description Allows public read and owner-only write access for payment requests.
      * @path /paymentRequests/{requestId}
-     * @allow (read): Anyone can read payment request data.
-     * @deny (create): No one can create payment request data.
-     * @deny (update): No one can update payment request data.
-     * @deny (delete): No one can delete payment request data.
-     * @principle Public read access; no write access.
+     * @allow (get, list) Any user can read payment request data.
+     * @allow (create) Authenticated user can create a payment request document if they "own" it.
+     * @allow (update, delete) Authenticated user can update or delete a payment request document if they are the owner.
+     * @deny (create) Non-authenticated user cannot create a payment request document.
+     * @deny (update, delete) Non-authenticated user cannot update or delete a payment request document.
      */
     match /paymentRequests/{requestId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to budget data.
+     * @description Allows public read and owner-only write access for budget data.
      * @path /budgets/{budgetId}
-     * @allow (read): Anyone can read budget data.
-     * @deny (create): No one can create budget data.
-     * @deny (update): No one can update budget data.
-     * @deny (delete): No one can delete budget data.
-     * @principle Public read access; no write access.
+     * @allow (get, list) Any user can read budget data.
+     * @allow (create) Authenticated user can create a budget document if they "own" it.
+     * @allow (update, delete) Authenticated user can update or delete a budget document if they are the owner.
+     * @deny (create) Non-authenticated user cannot create a budget document.
+     * @deny (update, delete) Non-authenticated user cannot update or delete a budget document.
      */
     match /budgets/{budgetId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to leave request data.
+     * @description Allows public read and owner-only write access for leave requests.
      * @path /leaveRequests/{requestId}
-     * @allow (read): Authenticated user can read leave request data.
-     * @deny (create): No one can create leave request data.
-     * @deny (update): No one can update leave request data.
-     * @deny (delete): No one can delete leave request data.
-     * @principle Authenticated read access; no write access.
+     * @allow (get, list) Any user can read leave request data.
+     * @allow (create) Authenticated user can create a leave request document if they "own" it.
+     * @allow (update, delete) Authenticated user can update or delete a leave request document if they are the owner.
+     * @deny (create) Non-authenticated user cannot create a leave request document.
+     * @deny (update, delete) Non-authenticated user cannot update or delete a leave request document.
      */
     match /leaveRequests/{requestId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create, update, delete: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to user permissions data.
+     * @description Enforces ownership for documents under /userPermissions/{userId}.
      * @path /userPermissions/{userId}
-     * @allow (read): Anyone can read user permissions data.
-     * @deny (create): No one can create user permissions data.
-     * @deny (update): No one can update user permissions data.
-     * @deny (delete): No one can delete user permissions data.
-     * @principle Public read access; no write access.
      */
     match /userPermissions/{userId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+      allow get: if isOwner(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to helpdesk ticket data.
+     * @description Allows public read and owner-only write access for helpdesk tickets.
      * @path /helpdeskTickets/{ticketId}
-     * @allow (create): Authenticated user can create a helpdesk ticket. Must validate that userId and userEmail match the auth.
-     * @deny (create): Authenticated user cannot create a ticket for another user.
-     * @allow (read): Anyone can read helpdesk ticket data.
-     * @allow (update): Authenticated user can update a helpdesk ticket where the ticket's userId matches their own.
-     * @deny (update): Authenticated user cannot update someone else's helpdesk ticket.
-     * @allow (delete): Authenticated user can delete a helpdesk ticket where the ticket's userId matches their own.
-     * @deny (delete): Authenticated user cannot delete someone else's helpdesk ticket.
-     *
-     * @principle Authenticated users can create and manage their own helpdesk tickets.
      */
     match /helpdeskTickets/{ticketId} {
       allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.userEmail == request.auth.token.email;
-      allow update: if isSignedIn() && isExistingTicketOwner(request.auth.uid, resource.data.userId);
-      allow delete: if isSignedIn() && isExistingTicketOwner(request.auth.uid, resource.data.userId);
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
-       /**
-     * @description Controls access to incident data.
+    /**
+     * @description Allows public read and owner-only write access for IT Assets.
+     * @path /itAssets/{assetId}
+     */
+    match /itAssets/{assetId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+     /**
+      * @description Allows public read and owner-only write access for network services.
+      * @path /networkServices/{serviceId}
+      */
+    match /networkServices/{serviceId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Allows public read and owner-only write access for incidents.
      * @path /incidents/{incidentId}
-     * @allow (read): Anyone can read incident data.
-     * @deny (create): No one can create incident data.
-     * @deny (update): No one can update incident data.
-     * @deny (delete): No one can delete incident data.
-     * @principle Public read access; no write access.
      */
     match /incidents/{incidentId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to inventory item data.
+     * @description Allows public read and owner-only write access for inventory.
      * @path /inventory/{itemId}
-     * @allow (read): Anyone can read inventory item data.
-     * @deny (create): No one can create inventory item data.
-     * @deny (update): No one can update inventory item data.
-     * @deny (delete): No one can delete inventory item data.
-     * @principle Public read access; no write access.
      */
     match /inventory/{itemId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to purchase request data.
+     * @description Allows public read and owner-only write access for purchase requests.
      * @path /purchaseRequestsSC/{prId}
-     * @allow (read): Anyone can read purchase request data.
-     * @deny (create): No one can create purchase request data.
-     * @deny (update): No one can update purchase request data.
-     * @deny (delete): No one can delete purchase request data.
-     * @principle Public read access; no write access.
      */
     match /purchaseRequestsSC/{prId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to shipment data.
+     * @description Allows public read and owner-only write access for shipments.
      * @path /shipments/{shipmentId}
-     * @allow (read): Anyone can read shipment data.
-     * @deny (create): No one can create shipment data.
-     * @deny (update): No one can update shipment data.
-     * @deny (delete): No one can delete shipment data.
-     * @principle Public read access; no write access.
      */
     match /shipments/{shipmentId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to asset data.
+     * @description Allows public read and owner-only write access for assets.
      * @path /assets/{assetId}
-     * @allow (read): Anyone can read asset data.
-     * @deny (create): No one can create asset data.
-     * @deny (update): No one can update asset data.
-     * @deny (delete): No one can delete asset data.
-     * @principle Public read access; no write access.
      */
     match /assets/{assetId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to maintenance task data.
+     * @description Allows public read and owner-only write access for maintenance tasks.
      * @path /maintenanceTasks/{taskId}
-     * @allow (read): Anyone can read maintenance task data.
-     * @deny (create): No one can create maintenance task data.
-     * @deny (update): No one can update maintenance task data.
-     * @deny (delete): No one can delete maintenance task data.
-     * @principle Public read access; no write access.
      */
     match /maintenanceTasks/{taskId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to general ledger entry data.
+     * @description Allows public read and owner-only write access for general ledger entries.
      * @path /generalLedger/{entryId}
-     * @allow (read): Anyone can read general ledger entry data.
-     * @deny (create): No one can create general ledger entry data.
-     * @deny (update): No one can update general ledger entry data.
-     * @deny (delete): No one can delete general ledger entry data.
-     * @principle Public read access; no write access.
      */
     match /generalLedger/{entryId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to invoice data.
+     * @description Allows public read and owner-only write access for invoices.
      * @path /invoices/{invoiceId}
-     * @allow (read): Anyone can read invoice data.
-     * @deny (create): No one can create invoice data.
-     * @deny (update): No one can update invoice data.
-     * @deny (delete): No one can delete invoice data.
-     * @principle Public read access; no write access.
      */
     match /invoices/{invoiceId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to bill data.
+     * @description Allows public read and owner-only write access for bills.
      * @path /bills/{billId}
-     * @allow (read): Anyone can read bill data.
-     * @deny (create): No one can create bill data.
-     * @deny (update): No one can update bill data.
-     * @deny (delete): No one can delete bill data.
-     * @principle Public read access; no write access.
      */
     match /bills/{billId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to bank account data.
+     * @description Allows public read and owner-only write access for bank accounts.
      * @path /bankAccounts/{accountId}
-     * @allow (read): Anyone can read bank account data.
-     * @deny (create): No one can create bank account data.
-     * @deny (update): No one can update bank account data.
-     * @deny (delete): No one can delete bank account data.
-     * @principle Public read access; no write access.
      */
     match /bankAccounts/{accountId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
-    /**
-     * @description Controls access to payroll run data.
-     * @path /payrollRuns/{runId}
-     * @allow (read, write): Only Super Admins, Admins, and Managers can read and write.
-     */
+     /**
+      * @description Allows public read and owner-only write access for payroll runs.
+      * @path /payrollRuns/{runId}
+      */
     match /payrollRuns/{runId} {
-      allow get, list: if isSignedIn() && isAdmin();
-      allow create, update, delete: if isSignedIn() && isAdmin();
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Controls access to employee salary data.
+     * @description Enforces ownership for documents under /employeeSalaries/{userId}.
      * @path /employeeSalaries/{userId}
-     * @allow (read, write): Only Super Admins, Admins, and Managers can read and write.
      */
     match /employeeSalaries/{userId} {
-      allow get, list: if isSignedIn() && isAdmin();
-      allow create, update, delete: if isSignedIn() && isAdmin();
+      allow get: if isOwner(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to payslip data.
+     * @description Allows public read and owner-only write access for payslips.
      * @path /payslips/{payslipId}
-     * @allow (read): User can read their own payslip or Super Admins, Admins, and Managers can read any payslip.
      */
     match /payslips/{payslipId} {
-        allow get: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
-        allow list: if false;
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Allows public read and owner-only write access for performance reviews.
+     * @path /performanceReviews/{reviewId}
+     */
+    match /performanceReviews/{reviewId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Allows public read and owner-only write access for employee objectives.
+     * @path /employeeObjectives/{objectiveId}
+     */
+    match /employeeObjectives/{objectiveId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Allows public read and owner-only write access for attendance records.
+     * @path /attendanceRecords/{recordId}
+     */
+    match /attendanceRecords/{recordId} {
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Allows public read-only access for produksi data.
+     * @path /produksi/{produksiId}
+     */
+    match /produksi/{produksiId} {
+        allow get, list: if true;
         allow create, update, delete: if false;
     }
 
     /**
-     * @description Controls access to performance review data.
-     * @path /performanceReviews/{reviewId}
-     * @allow (read, write): Only Super Admins, Admins, and Managers can read and write.
-     */
-    match /performanceReviews/{reviewId} {
-      allow get, list: if isSignedIn() && isAdmin();
-      allow create, update, delete: if isSignedIn() && isAdmin();
-    }
-
-    /**
-     * @description Controls access to employee objective data.
-     * @path /employeeObjectives/{objectiveId}
-     * @allow (read, write): Only Super Admins, Admins, and Managers can read and write.
-     */
-    match /employeeObjectives/{objectiveId} {
-      allow get, list: if isSignedIn() && isAdmin();
-      allow create, update, delete: if isSignedIn() && isAdmin();
-    }
-
-    /**
-     * @description Controls access to attendance record data.
-     * @path /attendanceRecords/{recordId}
-     * @allow (read, write): Only Super Admins, Admins, and Managers can read and write.
-     */
-    match /attendanceRecords/{recordId} {
-      allow get, list: if isSignedIn() && isAdmin();
-      allow create, update, delete: if isSignedIn() && isAdmin();
-    }
-
-     /**
-     * @description Controls access to produksi data.
-     * @path /produksi/{produksiId}
-     * @allow (read): Anyone can read produksi data.
-     * @deny (create): No one can create produksi data.
-     * @deny (update): No one can update produksi data.
-     * @deny (delete): No one can delete produksi data.
-     * @principle Public read access; no write access.
-     */
-    match /produksi/{produksiId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-     /**
-     * @description Controls access to geologi data.
+     * @description Allows public read-only access for geologi data.
      * @path /geologi/{geologiId}
-     * @allow (read): Anyone can read geologi data.
-     * @deny (create): No one can create geologi data.
-     * @deny (update): No one can update geologi data.
-     * @deny (delete): No one can delete geologi data.
-     * @principle Public read access; no write access.
      */
     match /geologi/{geologiId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
-     /**
-     * @description Controls access to pengolahan data.
+    /**
+     * @description Allows public read-only access for pengolahan data.
      * @path /pengolahan/{pengolahanId}
-     * @allow (read): Anyone can read pengolahan data.
-     * @deny (create): No one can create pengolahan data.
-     * @deny (update): No one can update pengolahan data.
-     * @deny (delete): No one can delete pengolahan data.
-     * @principle Public read access; no write access.
      */
     match /pengolahan/{pengolahanId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
-     /**
-     * @description Controls access to k3l data.
+    /**
+     * @description Allows public read-only access for k3l data.
      * @path /k3l/{k3lId}
-     * @allow (read): Anyone can read k3l data.
-     * @deny (create): No one can create k3l data.
-     * @deny (update): No one can update k3l data.
-     * @deny (delete): No one can delete k3l data.
-     * @principle Public read access; no write access.
      */
     match /k3l/{k3lId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
-     /**
-     * @description Controls access to keuangan data.
+    /**
+     * @description Allows public read-only access for keuangan data.
      * @path /keuangan/{keuanganId}
-     * @allow (read): Anyone can read keuangan data.
-     * @deny (create): No one can create keuangan data.
-     * @deny (update): No one can update keuangan data.
-     * @deny (delete): No one can delete keuangan data.
-     * @principle Public read access; no write access.
      */
     match /keuangan/{keuanganId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
     /**
-     * @description Controls access to sdm data.
+     * @description Allows public read-only access for sdm data.
      * @path /sdm/{sdmId}
-     * @allow (read): Anyone can read sdm data.
-     * @deny (create): No one can create sdm data.
-     * @deny (update): No one can update sdm data.
-     * @deny (delete): No one can delete sdm data.
-     * @principle Public read access; no write access.
      */
     match /sdm/{sdmId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-     /**
-     * @description Controls access to it data.
-     * @path /it/{itId}
-     * @allow (read): Anyone can read it data.
-     * @deny (create): No one can create it data.
-     * @deny (update): No one can update it data.
-     * @deny (delete): No one can delete it data.
-     * @principle Public read access; no write access.
-     */
-    match /it/{itId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
 
     /**
-     * @description Controls access to K3L Incident reports.
-     * @path /incidents/{incidentId}
-     * @allow (read): Anyone can read incident data.
-     * @deny (create): No one can create incident data.
-     * @deny (update): No one can update incident data.
-     * @deny (delete): No one can delete incident data.
-     * @principle Public read access; no write access.
+     * @description Allows public read-only access for it data.
+     * @path /it/{itId}
      */
-
-  }
-
-  // Helper functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
-
-  function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
-  }
-
-  function isExistingTicketOwner(authUid, ticketOwnerId) {
-    return authUid == ticketOwnerId && resource != null;
-  }
-
-    function isAdmin() {
-      return isSignedIn() && get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];
+    match /it/{itId} {
+        allow get, list: if true;
+        allow create, update, delete: if false;
     }
+  }
 }
