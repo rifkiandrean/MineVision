@@ -39,7 +39,23 @@ export type HelpdeskTicket = {
   priority: 'Low' | 'Medium' | 'High';
   status: 'Open' | 'In Progress' | 'Closed';
   userEmail: string;
+  createdAt: string;
 };
+
+export type ITAsset = {
+    id: string;
+    assetId: string;
+    type: string;
+    user: string;
+    status: 'In Use' | 'Standby' | 'Maintenance';
+}
+
+export type NetworkService = {
+    id: string;
+    name: string;
+    status: 'Operational' | 'Degraded Performance' | 'Outage';
+    uptime: number;
+}
 
 export type InventoryItem = {
   id: string;

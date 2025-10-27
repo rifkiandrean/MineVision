@@ -1,3 +1,4 @@
+
 {
   "name": "nextn",
   "version": "0.1.0",
@@ -18,7 +19,9 @@
     "seed:ledger": "node --loader ts-node/esm scripts/seed-ledger.mjs",
     "seed:invoices": "node --loader ts-node/esm scripts/seed-invoices.mjs",
     "seed:bills": "node --loader ts-node/esm scripts/seed-bills.mjs",
-    "seed:bank": "node --loader ts-node/esm scripts/seed-bank-accounts.mjs"
+    "seed:bank": "node --loader ts-node/esm scripts/seed-bank-accounts.mjs",
+    "seed:it-assets": "node --loader ts-node/esm scripts/seed-it-assets.mjs",
+    "seed:network-services": "node --loader ts-node/esm scripts/seed-network-services.mjs"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",

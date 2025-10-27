@@ -34,22 +34,8 @@ import {
 import { TicketForm } from './ticket-form';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
-import type { HelpdeskTicket } from '@/lib/types';
+import type { HelpdeskTicket, ITAsset, NetworkService } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const assets = [
-  { id: 'LAP-001', type: 'Laptop', user: 'Rifki Andrean', status: 'In Use' },
-  { id: 'LAP-002', type: 'Laptop', user: 'Thoriq', status: 'In Use' },
-  { id: 'PRN-001', type: 'Printer', user: 'Office', status: 'Standby' },
-  { id: 'SRV-001', type: 'Server', user: 'Data Center', status: 'Maintenance' },
-];
-
-const networkServices = [
-  { name: 'Internet Gateway', status: 'Operational', uptime: 99.98 },
-  { name: 'File Server', status: 'Operational', uptime: 99.95 },
-  { name: 'Email Server', status: 'Degraded Performance', uptime: 98.5 },
-  { name: 'Intranet Portal', status: 'Outage', uptime: 95.0 },
-];
 
 export default function ItPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -62,9 +48,20 @@ export default function ItPage() {
       orderBy('createdAt', 'desc')
     );
   }, [firestore]);
+  
+  const assetsQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return query(collection(firestore, 'itAssets'), orderBy('assetId'));
+  }, [firestore]);
+  
+  const networkQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return query(collection(firestore, 'networkServices'), orderBy('name'));
+  }, [firestore]);
 
-  const { data: tickets, isLoading: ticketsLoading } =
-    useCollection<HelpdeskTicket>(ticketsQuery);
+  const { data: tickets, isLoading: ticketsLoading } = useCollection<HelpdeskTicket>(ticketsQuery);
+  const { data: assets, isLoading: assetsLoading } = useCollection<ITAsset>(assetsQuery);
+  const { data: networkServices, isLoading: networkLoading } = useCollection<NetworkService>(networkQuery);
 
   const getStatusClass = (status: string) => {
     switch (status) {
@@ -142,21 +139,32 @@ export default function ItPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {assets.map((asset) => (
-                  <TableRow key={asset.id}>
-                    <TableCell className="font-medium">{asset.id}</TableCell>
-                    <TableCell>{asset.type}</TableCell>
-                    <TableCell>{asset.user}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={cn(getStatusClass(asset.status))}
-                      >
-                        {asset.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {assetsLoading ? (
+                    Array.from({length: 4}).map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-4 w-20"/></TableCell>
+                            <TableCell><Skeleton className="h-4 w-24"/></TableCell>
+                            <TableCell><Skeleton className="h-4 w-32"/></TableCell>
+                            <TableCell><Skeleton className="h-6 w-24"/></TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                    assets?.map((asset) => (
+                      <TableRow key={asset.id}>
+                        <TableCell className="font-medium">{asset.assetId}</TableCell>
+                        <TableCell>{asset.type}</TableCell>
+                        <TableCell>{asset.user}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={cn(getStatusClass(asset.status))}
+                          >
+                            {asset.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -172,23 +180,35 @@ export default function ItPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {networkServices.map((service) => (
-              <div key={service.name}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium">{service.name}</span>
-                  <Badge
-                    variant="secondary"
-                    className={cn(getStatusClass(service.status))}
-                  >
-                    {service.status}
-                  </Badge>
-                </div>
-                <Progress value={service.uptime} />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Uptime: {service.uptime}%
-                </p>
-              </div>
-            ))}
+            {networkLoading ? (
+                Array.from({length: 4}).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                        <div className="flex justify-between">
+                            <Skeleton className="h-4 w-32"/>
+                            <Skeleton className="h-6 w-24"/>
+                        </div>
+                        <Skeleton className="h-2 w-full"/>
+                    </div>
+                ))
+            ) : (
+                networkServices?.map((service) => (
+                  <div key={service.id}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium">{service.name}</span>
+                      <Badge
+                        variant="secondary"
+                        className={cn(getStatusClass(service.status))}
+                      >
+                        {service.status}
+                      </Badge>
+                    </div>
+                    <Progress value={service.uptime} />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Uptime: {service.uptime}%
+                    </p>
+                  </div>
+                ))
+            )}
           </CardContent>
         </Card>
       </div>
@@ -270,5 +290,3 @@ export default function ItPage() {
     </main>
   );
 }
-
-    

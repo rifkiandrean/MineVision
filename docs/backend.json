@@ -297,10 +297,6 @@
           "type": "string",
           "description": "IT asset inventory."
         },
-        "helpdeskTickets": {
-          "type": "string",
-          "description": "Helpdesk tickets."
-        },
         "networkStatus": {
           "type": "string",
           "description": "Network status."
@@ -314,6 +310,31 @@
       "required": [
         "id"
       ]
+    },
+    "ITAsset": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ITAsset",
+      "type": "object",
+      "description": "Represents a single IT asset.",
+      "properties": {
+        "assetId": { "type": "string" },
+        "type": { "type": "string" },
+        "user": { "type": "string" },
+        "status": { "type": "string", "enum": ["In Use", "Standby", "Maintenance"] }
+      },
+      "required": ["assetId", "type", "user", "status"]
+    },
+    "NetworkService": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NetworkService",
+      "type": "object",
+      "description": "Represents a network service and its status.",
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["Operational", "Degraded Performance", "Outage"] },
+        "uptime": { "type": "number" }
+      },
+      "required": ["name", "status", "uptime"]
     },
     "KPI": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -731,7 +752,7 @@
       "properties": {
         "userId": { "type": "string", "description": "The UID of the employee." },
         "date": { "type": "string", "format": "date", "description": "The date of the attendance record." },
-        "status": { "type": "string", "enum": ["Hadir", "Sakit", "Izin", "Alpa", "Cuti"], "description": "The attendance status." },
+        "status": { "type": "string", "enum": ["Hadir", "Sakit", "Izin", "Alpa", "Cuti", "Libur"], "description": "The attendance status." },
         "checkIn": { "type": "string", "format": "date-time", "description": "Check-in timestamp." },
         "checkOut": { "type": "string", "format": "date-time", "description": "Check-out timestamp." },
         "shift": { "type": "string", "description": "The shift code (e.g., S1, S2, S3)." }
@@ -752,8 +773,7 @@
         "definition": {
             "entityName": "User",
             "schema": { "$ref": "#/backend/entities/User" },
-            "description": "Stores user account information, including their role/department.",
-            "rules": "allow read: if request.auth != null;"
+            "description": "Stores user account information, including their role/department."
         }
       },
       {
@@ -801,8 +821,7 @@
         "definition": {
           "entityName": "LeaveRequest",
           "schema": { "$ref": "#/backend/entities/LeaveRequest" },
-          "description": "Stores all employee leave requests.",
-          "rules": "allow read: if request.auth != null;"
+          "description": "Stores all employee leave requests."
         }
       },
       {
@@ -819,6 +838,22 @@
           "entityName": "HelpdeskTicket",
           "schema": { "$ref": "#/backend/entities/HelpdeskTicket" },
           "description": "Stores all helpdesk support tickets."
+        }
+      },
+      {
+        "path": "/itAssets/{assetId}",
+        "definition": {
+          "entityName": "ITAsset",
+          "schema": { "$ref": "#/backend/entities/ITAsset" },
+          "description": "Stores IT asset inventory."
+        }
+      },
+      {
+        "path": "/networkServices/{serviceId}",
+        "definition": {
+          "entityName": "NetworkService",
+          "schema": { "$ref": "#/backend/entities/NetworkService" },
+          "description": "Stores network service status."
         }
       },
        {
@@ -906,8 +941,7 @@
         "definition": {
           "entityName": "PayrollRun",
           "schema": { "$ref": "#/backend/entities/PayrollRun" },
-          "description": "Stores historical payroll run data.",
-          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+          "description": "Stores historical payroll run data."
         }
       },
       {
@@ -915,8 +949,7 @@
         "definition": {
           "entityName": "EmployeeSalary",
           "schema": { "$ref": "#/backend/entities/EmployeeSalary" },
-          "description": "Stores salary structures for each employee.",
-          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+          "description": "Stores salary structures for each employee."
         }
       },
       {
@@ -924,8 +957,7 @@
         "definition": {
           "entityName": "Payslip",
           "schema": { "$ref": "#/backend/entities/Payslip" },
-          "description": "Stores individual payslips for each payroll run.",
-          "rules": "allow read: if request.auth.uid == resource.data.userId || get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+          "description": "Stores individual payslips for each payroll run."
         }
       },
       {
@@ -933,8 +965,7 @@
         "definition": {
           "entityName": "PerformanceReview",
           "schema": { "$ref": "#/backend/entities/PerformanceReview" },
-          "description": "Stores performance review data for employees.",
-          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+          "description": "Stores performance review data for employees."
         }
       },
       {
@@ -942,8 +973,7 @@
         "definition": {
           "entityName": "EmployeeObjective",
           "schema": { "$ref": "#/backend/entities/EmployeeObjective" },
-          "description": "Stores individual objectives for employees.",
-          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+          "description": "Stores individual objectives for employees."
         }
       },
       {
@@ -951,8 +981,7 @@
         "definition": {
           "entityName": "AttendanceRecord",
           "schema": { "$ref": "#/backend/entities/AttendanceRecord" },
-          "description": "Stores employee attendance records.",
-          "rules": "allow read, write: if get(/databases/(default)/documents/users/$(request.auth.uid)).data.department in ['Super Admin', 'Admin', 'Manager'];"
+          "description": "Stores employee attendance records."
         }
       },
       {
@@ -1068,6 +1097,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module. Added payroll-related collections: `payrollRuns`, `employeeSalaries`, `payslips`. Added performance management collections: `performanceReviews`, `employeeObjectives`. Added `attendanceRecords` collection for the work scheduling module."
+    "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. Added itAssets and networkServices collections for the IT module. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module. Added payroll-related collections: `payrollRuns`, `employeeSalaries`, `payslips`. Added performance management collections: `performanceReviews`, `employeeObjectives`. Added `attendanceRecords` collection for the work scheduling module."
   }
 }
