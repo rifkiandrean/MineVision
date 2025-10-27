@@ -1,42 +1,36 @@
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, writeBatch } from 'firebase/firestore';
+import { getFirestore, setDoc, doc } from 'firebase/firestore';
 import { firebaseConfig } from './firebase-config.mjs';
 
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const firestore = getFirestore(app);
+
 const productionStatusData = [
-    { id: 'area-crusher', name: 'Area Crusher Plant', status: 'Optimal' },
-    { id: 'area-hauling', name: 'Area Pengangkutan', status: 'Warning' },
-    { id: 'area-barging', name: 'Area Pemuatan Tongkang', status: 'Optimal' },
-    { id: 'area-stockpile', name: 'Area Stockpile', status: 'Halted' },
+  { id: 'area-crusher', name: 'Crusher Plant', status: 'Optimal' },
+  { id: 'area-hauling', name: 'Hauling Road', status: 'Warning' },
+  { id: 'area-stockpile', name: 'Stockpile', status: 'Optimal' },
+  { id: 'area-barging', name: 'Barging Conveyor', status: 'Halted' },
 ];
 
 async function seedProductionStatus() {
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // Get a new write batch
-  const batch = writeBatch(db);
-
-  // Set the data
-  const statusCollection = collection(db, 'productionStatus');
-  productionStatusData.forEach((status) => {
-    const docRef = status.id ? collection(db, 'productionStatus', status.id) : collection(db, 'productionStatus');
-    // @ts-ignore
-    batch.set(docRef, status, { merge: true });
-  });
-
+  console.log('Seeding production status data...');
   try {
-    // Commit the batch
-    await batch.commit();
-    console.log('✅ Production status data seeded successfully.');
-  } catch (error) {
-    console.error('🔥 Error seeding production status data:', error);
-  } finally {
-    // In a script, you might want to terminate the process
-    // For this simple script, we'll let it exit naturally.
-    // Note: In a real-world scenario with persistent connections, you might need to explicitly close them.
+    for (const status of productionStatusData) {
+      // Use doc() to reference a document, not collection() with a full path.
+      const docRef = doc(firestore, 'productionStatus', status.id);
+      await setDoc(docRef, {
+        name: status.name,
+        status: status.status,
+      }, { merge: true });
+      console.log(`Successfully seeded: ${status.name}`);
+    }
+    console.log('Finished seeding production status data.');
     process.exit(0);
+  } catch (error) {
+    console.error('Error seeding production status data:', error);
+    process.exit(1);
   }
 }
 
