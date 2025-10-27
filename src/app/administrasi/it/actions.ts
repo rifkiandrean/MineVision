@@ -9,7 +9,8 @@ import { revalidatePath } from 'next/cache';
 const formSchema = z.object({
   subject: z.string().min(5, 'Subject must be at least 5 characters long.'),
   priority: z.enum(['Low', 'Medium', 'High']),
-  // We'll get user info on the server, so it's not part of the form schema
+  userId: z.string().min(1, "User ID is required."),
+  userEmail: z.string().email("A valid user email is required."),
 });
 
 export type FormState = {
@@ -21,6 +22,8 @@ export async function createTicket(prevState: any, formData: FormData): Promise<
   const validatedFields = formSchema.safeParse({
     subject: formData.get('subject'),
     priority: formData.get('priority'),
+    userId: formData.get('userId'),
+    userEmail: formData.get('userEmail'),
   });
 
   if (!validatedFields.success) {
@@ -35,18 +38,15 @@ export async function createTicket(prevState: any, formData: FormData): Promise<
   }
 
   try {
-    // This is a server action, we can safely initialize and use Firebase here.
     const { firestore } = initializeFirebase();
     
     const ticketsCollection = collection(firestore, 'helpdeskTickets');
     
-    // We can't get user from useFirebase() hook in server action.
-    // In a real app, you would get user from session or by passing uid from client.
-    // For now, we will use placeholder data.
     const newTicket = {
-      ...validatedFields.data,
-      userId: 'server-user',
-      userEmail: 'server@example.com',
+      subject: validatedFields.data.subject,
+      priority: validatedFields.data.priority,
+      userId: validatedFields.data.userId,
+      userEmail: validatedFields.data.userEmail,
       status: 'Open' as const,
       createdAt: new Date().toISOString(),
       ticketId: Date.now().toString().slice(-6)
@@ -54,7 +54,6 @@ export async function createTicket(prevState: any, formData: FormData): Promise<
 
     await addDoc(ticketsCollection, newTicket);
 
-    // Revalidate the path to show the new ticket immediately
     revalidatePath('/administrasi/it');
 
     return {

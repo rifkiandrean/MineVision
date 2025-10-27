@@ -17,6 +17,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useFirebase } from '@/firebase';
 
 const initialState: FormState = {
   message: '',
@@ -43,6 +44,7 @@ interface TicketFormProps {
 }
 
 export function TicketForm({ onTicketCreated }: TicketFormProps) {
+  const { user } = useFirebase();
   const [state, formAction] = useActionState(createTicket, initialState);
   const [priority, setPriority] = useState('Medium');
   const { toast } = useToast();
@@ -71,6 +73,8 @@ export function TicketForm({ onTicketCreated }: TicketFormProps) {
 
   return (
     <form ref={formRef} action={formAction} className="space-y-4 pt-4">
+       <input type="hidden" name="userId" value={user?.uid || ''} />
+       <input type="hidden" name="userEmail" value={user?.email || ''} />
        <div className="space-y-2">
         <Label htmlFor="subject">Subject</Label>
         <Textarea
