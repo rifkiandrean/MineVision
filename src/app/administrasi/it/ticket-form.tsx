@@ -50,8 +50,15 @@ export function TicketForm({ onTicketCreated }: TicketFormProps) {
   const [priority, setPriority] = useState('Medium');
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
+  const processedStateRef = useRef<FormState | null>(null);
 
   useEffect(() => {
+    // Prevent re-running for the same state object
+    if (state === processedStateRef.current) {
+        return;
+    }
+    processedStateRef.current = state;
+
     if (state.message.startsWith('Error')) {
       toast({
         variant: 'destructive',
