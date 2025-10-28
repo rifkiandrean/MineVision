@@ -241,11 +241,11 @@ export default function SettingsPage() {
 
       // Save user info to 'users' collection
       const userDocRef = doc(firestore, 'users', newUser.uid);
-      setDocumentNonBlocking(userDocRef, newUser, {});
+      await setDoc(userDocRef, newUser);
 
       // Initialize permissions for the new user
       const newUserPermsRef = doc(firestore, 'userPermissions', newUser.uid);
-      setDocumentNonBlocking(newUserPermsRef, { userId: newUser.uid, permissions: defaultPermissions }, { merge: true });
+      await setDoc(newUserPermsRef, { userId: newUser.uid, permissions: defaultPermissions }, { merge: true });
 
       toast({
         title: 'Akun Dibuat',
@@ -258,7 +258,7 @@ export default function SettingsPage() {
 
     } catch (error: any) {
       // This catch block handles Auth errors (like email-already-in-use)
-      // Firestore permission errors from setDocumentNonBlocking are handled globally.
+      // Firestore permission errors from setDoc are now caught by the global handler
       if (error.code?.startsWith('auth/')) {
         toast({
           variant: 'destructive',
@@ -509,4 +509,5 @@ export default function SettingsPage() {
       )}
     </main>
   );
-}
+
+    
