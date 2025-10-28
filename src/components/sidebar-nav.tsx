@@ -63,10 +63,6 @@ const iconMap: { [key: string]: React.ReactNode } = {
   "/rantai-pasokan": <Package />,
   "/aset-dan-pemeliharaan": <Settings2 />,
   "/pelaporan-dan-analisis": <BarChart4 />,
-  "/administrasi/keuangan": <Landmark />,
-  "/administrasi/sdm": <Users />,
-  "/administrasi/it": <Server />,
-  "/pengaturan": <Settings />,
   "default": <Pickaxe />,
 };
 
@@ -82,7 +78,7 @@ interface SidebarNavProps {
     menuItems: AppConfig['menuItems'];
 }
 
-export default function SidebarNav({ websiteName, logoUrl, menuItems }: SidebarNavProps) {
+export default function SidebarNav({ websiteName, logoUrl, menuItems = [] }: SidebarNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { auth, user } = useFirebase();
@@ -118,17 +114,20 @@ export default function SidebarNav({ websiteName, logoUrl, menuItems }: SidebarN
       <SidebarContent className="p-2">
         <SidebarMenu>
           {mainNavItems.map((item) => (
-            <SidebarMenuItem key={item.label}>
-              <Link href={item.href}>
-                <SidebarMenuButton
-                  isActive={pathname === item.href}
-                  className="w-full justify-start"
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
+            // Exclude the 'Administrasi' link from the main dynamic list, as it's handled separately
+            item.href.startsWith('/administrasi') ? null : (
+              <SidebarMenuItem key={item.label}>
+                <Link href={item.href}>
+                  <SidebarMenuButton
+                    isActive={pathname === item.href}
+                    className="w-full justify-start"
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            )
           ))}
           <Collapsible open={isAdminOpen} onOpenChange={setIsAdminOpen}>
             <CollapsibleTrigger asChild>
@@ -187,7 +186,7 @@ export default function SidebarNav({ websiteName, logoUrl, menuItems }: SidebarN
                 <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <p className="text-sm font-medium">{user?.displayName || 'User'}</p>
+                <p className="text-sm font-medium">{user?.displayName || user?.email || 'User'}</p>
                 <p className="text-xs text-muted-foreground">{user?.email || 'No email'}</p>
               </div>
             </Button>
@@ -195,7 +194,7 @@ export default function SidebarNav({ websiteName, logoUrl, menuItems }: SidebarN
           <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
+                <p className="text-sm font-medium leading-none">{user?.displayName || user?.email || 'User'}</p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {user?.email || 'No email'}
                 </p>
