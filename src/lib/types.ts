@@ -1,9 +1,15 @@
 
+
 export type User = {
     id: string;
     uid: string;
     email: string;
     department: string;
+};
+
+export type AppConfig = {
+  websiteName: string;
+  menuItems: { id: number; name: string; path: string }[];
 };
 
 export type PaymentRequest = {

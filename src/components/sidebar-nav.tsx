@@ -69,7 +69,11 @@ const adminNavItems = [
   { href: "/administrasi/it", icon: <Server />, label: "IT" },
 ];
 
-export default function SidebarNav() {
+interface SidebarNavProps {
+    websiteName: string;
+}
+
+export default function SidebarNav({ websiteName }: SidebarNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { auth, user } = useFirebase();
@@ -87,7 +91,7 @@ export default function SidebarNav() {
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
           <Pickaxe className="w-8 h-8 text-primary" />
-          <h1 className="text-xl font-bold text-primary">MineVision</h1>
+          <h1 className="text-xl font-bold text-primary">{websiteName}</h1>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">

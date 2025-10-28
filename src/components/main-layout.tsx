@@ -2,16 +2,35 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
 import SidebarNav from "./sidebar-nav";
-import { useFirebase } from "@/firebase";
+import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
+import { doc } from 'firebase/firestore';
 import { Pickaxe } from "lucide-react";
+import type { AppConfig } from "@/lib/types";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isUserLoading } = useFirebase();
+  const { user, isUserLoading, firestore } = useFirebase();
+
+  const [websiteName, setWebsiteName] = useState('MineVision');
+
+  const appConfigDocRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'appConfig', 'main');
+  }, [firestore]);
+
+  const { data: appConfig } = useDoc<AppConfig>(appConfigDocRef);
+
+  useEffect(() => {
+    if (appConfig?.websiteName) {
+        setWebsiteName(appConfig.websiteName);
+        document.title = appConfig.websiteName;
+    }
+  }, [appConfig]);
+
 
   const noSidebarRoutes = ["/login"];
   const isPublicRoute = noSidebarRoutes.includes(pathname);
@@ -41,7 +60,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <SidebarProvider>
       <Sidebar>
-        <SidebarNav />
+        <SidebarNav websiteName={websiteName} />
       </Sidebar>
       <SidebarInset>
         {children}
