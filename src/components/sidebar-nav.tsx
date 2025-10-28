@@ -51,18 +51,24 @@ import {
   BarChart4,
 } from "lucide-react";
 import { useFirebase } from "@/firebase";
+import type { AppConfig } from "@/lib/types";
 
-const navItems = [
-  { href: "/", icon: <LayoutDashboard />, label: "Dashboard" },
-  { href: "/perencanaan-tambang", icon: <Layers />, label: "Perencanaan Tambang" },
-  { href: "/produksi", icon: <Truck />, label: "Produksi" },
-  { href: "/geologi", icon: <Mountain />, label: "Geologi" },
-  { href: "/pengolahan", icon: <Cog />, label: "Pengolahan" },
-  { href: "/k3l", icon: <ShieldCheck />, label: "K3L" },
-  { href: "/rantai-pasokan", icon: <Package />, label: "Rantai Pasokan" },
-  { href: "/aset-dan-pemeliharaan", icon: <Settings2 />, label: "Aset & Pemeliharaan" },
-  { href: "/pelaporan-dan-analisis", icon: <BarChart4 />, label: "Pelaporan & Analisis" },
-];
+const iconMap: { [key: string]: React.ReactNode } = {
+  "/": <LayoutDashboard />,
+  "/perencanaan-tambang": <Layers />,
+  "/produksi": <Truck />,
+  "/geologi": <Mountain />,
+  "/pengolahan": <Cog />,
+  "/k3l": <ShieldCheck />,
+  "/rantai-pasokan": <Package />,
+  "/aset-dan-pemeliharaan": <Settings2 />,
+  "/pelaporan-dan-analisis": <BarChart4 />,
+  "/administrasi/keuangan": <Landmark />,
+  "/administrasi/sdm": <Users />,
+  "/administrasi/it": <Server />,
+  "/pengaturan": <Settings />,
+  "default": <Pickaxe />,
+};
 
 const adminNavItems = [
   { href: "/administrasi/keuangan", icon: <Landmark />, label: "Keuangan" },
@@ -73,9 +79,10 @@ const adminNavItems = [
 interface SidebarNavProps {
     websiteName: string;
     logoUrl?: string;
+    menuItems: AppConfig['menuItems'];
 }
 
-export default function SidebarNav({ websiteName, logoUrl }: SidebarNavProps) {
+export default function SidebarNav({ websiteName, logoUrl, menuItems }: SidebarNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { auth, user } = useFirebase();
@@ -84,9 +91,17 @@ export default function SidebarNav({ websiteName, logoUrl }: SidebarNavProps) {
   );
 
   const handleLogout = () => {
-    auth.signOut();
+    if (auth) {
+      auth.signOut();
+    }
     router.push('/login');
   };
+
+  const mainNavItems = menuItems.map(item => ({
+      href: item.path,
+      icon: iconMap[item.path] || iconMap.default,
+      label: item.name,
+  }));
 
   return (
     <>
@@ -102,7 +117,7 @@ export default function SidebarNav({ websiteName, logoUrl }: SidebarNavProps) {
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {navItems.map((item) => (
+          {mainNavItems.map((item) => (
             <SidebarMenuItem key={item.label}>
               <Link href={item.href}>
                 <SidebarMenuButton
@@ -201,5 +216,3 @@ export default function SidebarNav({ websiteName, logoUrl }: SidebarNavProps) {
     </>
   );
 }
-
-    

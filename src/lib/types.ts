@@ -1,6 +1,7 @@
 
 
 
+
 export type User = {
     id: string;
     uid: string;
@@ -48,6 +49,7 @@ export type HelpdeskTicket = {
   status: 'Open' | 'In Progress' | 'Closed';
   userEmail: string;
   createdAt: string;
+  userId: string;
 };
 
 export type ITAsset = {

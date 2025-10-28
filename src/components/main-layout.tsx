@@ -17,7 +17,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
-
+  const [menuItems, setMenuItems] = useState<AppConfig['menuItems']>([]);
 
   const appConfigDocRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -34,6 +34,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }
         if (appConfig.logoUrl) {
             setLogoUrl(appConfig.logoUrl);
+        }
+        if (appConfig.menuItems) {
+            setMenuItems(appConfig.menuItems);
         }
     }
   }, [appConfig]);
@@ -67,7 +70,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <SidebarProvider>
       <Sidebar>
-        <SidebarNav websiteName={websiteName} logoUrl={logoUrl} />
+        <SidebarNav websiteName={websiteName} logoUrl={logoUrl} menuItems={menuItems} />
       </Sidebar>
       <SidebarInset>
         {children}
@@ -75,5 +78,3 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </SidebarProvider>
   );
 }
-
-    
