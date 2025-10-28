@@ -68,6 +68,7 @@ allPermissions.forEach((p) => {
 type AppConfig = {
   websiteName: string;
   menuItems: { id: number; name: string; path: string }[];
+  logoUrl?: string;
 };
 
 
@@ -78,6 +79,7 @@ export default function SettingsPage() {
 
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
+  const [logoUrl, setLogoUrl] = useState('');
 
   // --- App Config Data Fetching ---
   const appConfigDocRef = useMemoFirebase(() => {
@@ -91,6 +93,7 @@ export default function SettingsPage() {
     if (appConfig) {
       setWebsiteName(appConfig.websiteName);
       setMenuItems(appConfig.menuItems);
+      setLogoUrl(appConfig.logoUrl || '');
     }
   }, [appConfig]);
   
@@ -211,7 +214,7 @@ export default function SettingsPage() {
   const handleSavePageSettings = () => {
     if (!firestore) return;
     const docRef = doc(firestore, 'appConfig', 'main');
-    const configData = { websiteName, menuItems };
+    const configData = { websiteName, menuItems, logoUrl };
     setDocumentNonBlocking(docRef, configData, { merge: true });
     toast({
         title: 'Pengaturan Disimpan',
@@ -354,16 +357,19 @@ export default function SettingsPage() {
                       onChange={(e) => setWebsiteName(e.target.value)}
                       placeholder="e.g. MineVision"
                     />
-                    <p className="text-sm text-muted-foreground">
-                      Ini akan mengubah judul yang muncul di tab browser.
-                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="website-logo">Logo Website</Label>
-                    <Input id="website-logo" type="file" className="max-w-xs" />
+                    <Label htmlFor="website-logo">URL Logo Website</Label>
+                    <Input 
+                      id="website-logo" 
+                      type="url" 
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      placeholder="https://example.com/logo.png" 
+                    />
                     <p className="text-sm text-muted-foreground">
-                      Unggah logo baru (disarankan format .png atau .svg).
+                      Masukkan URL gambar logo (format .png atau .svg disarankan).
                     </p>
                   </div>
 
@@ -544,6 +550,8 @@ export default function SettingsPage() {
       )}
     </main>
   );
+
+    
 
     
 

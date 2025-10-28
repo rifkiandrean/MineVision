@@ -1,5 +1,6 @@
 
 
+
 export type User = {
     id: string;
     uid: string;
@@ -10,6 +11,7 @@ export type User = {
 export type AppConfig = {
   websiteName: string;
   menuItems: { id: number; name: string; path: string }[];
+  logoUrl?: string;
 };
 
 export type PaymentRequest = {
@@ -220,3 +222,5 @@ export type AttendanceRecord = {
     checkOut?: string | null; // ISO 8601
     shift: string; // e.g., 'S1', 'S2', 'S3'
 }
+
+    

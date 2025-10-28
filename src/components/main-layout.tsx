@@ -16,6 +16,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const { user, isUserLoading, firestore } = useFirebase();
 
   const [websiteName, setWebsiteName] = useState('MineVision');
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
+
 
   const appConfigDocRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -25,9 +27,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const { data: appConfig } = useDoc<AppConfig>(appConfigDocRef);
 
   useEffect(() => {
-    if (appConfig?.websiteName) {
-        setWebsiteName(appConfig.websiteName);
-        document.title = appConfig.websiteName;
+    if (appConfig) {
+        if (appConfig.websiteName) {
+            setWebsiteName(appConfig.websiteName);
+            document.title = appConfig.websiteName;
+        }
+        if (appConfig.logoUrl) {
+            setLogoUrl(appConfig.logoUrl);
+        }
     }
   }, [appConfig]);
 
@@ -60,7 +67,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <SidebarProvider>
       <Sidebar>
-        <SidebarNav websiteName={websiteName} />
+        <SidebarNav websiteName={websiteName} logoUrl={logoUrl} />
       </Sidebar>
       <SidebarInset>
         {children}
@@ -68,3 +75,5 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </SidebarProvider>
   );
 }
+
+    
