@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -64,6 +65,11 @@ allPermissions.forEach((p) => {
     defaultPermissions[p.id] = false;
 });
 
+type AppConfig = {
+  websiteName: string;
+  menuItems: { id: number; name: string; path: string }[];
+};
+
 
 export default function SettingsPage() {
   const { auth, user, firestore, isUserLoading } = useFirebase();
@@ -73,6 +79,22 @@ export default function SettingsPage() {
   const [websiteName, setWebsiteName] = useState('MineVision');
   const [menuItems, setMenuItems] = useState(initialMenuItems);
 
+  // --- App Config Data Fetching ---
+  const appConfigDocRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'appConfig', 'main');
+  }, [firestore]);
+
+  const { data: appConfig, isLoading: appConfigLoading } = useDoc<AppConfig>(appConfigDocRef);
+
+  useEffect(() => {
+    if (appConfig) {
+      setWebsiteName(appConfig.websiteName);
+      setMenuItems(appConfig.menuItems);
+    }
+  }, [appConfig]);
+  
+  // --- User and Permissions Data ---
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, 'users');
@@ -185,6 +207,17 @@ export default function SettingsPage() {
   const removeMenuItem = (id: number) => {
     setMenuItems(menuItems.filter((item) => item.id !== id));
   };
+  
+  const handleSavePageSettings = () => {
+    if (!firestore) return;
+    const docRef = doc(firestore, 'appConfig', 'main');
+    const configData = { websiteName, menuItems };
+    setDocumentNonBlocking(docRef, configData, { merge: true });
+    toast({
+        title: 'Pengaturan Disimpan',
+        description: 'Perubahan pengaturan halaman telah berhasil disimpan.'
+    });
+  }
 
   const handlePermissionChange = (permissionId: string) => {
     if (selectedUserIsSuperAdmin) return; // Prevent changes for Super Admin
@@ -311,6 +344,7 @@ export default function SettingsPage() {
             <AccordionItem value="item-1">
               <AccordionTrigger>Pengaturan Halaman</AccordionTrigger>
               <AccordionContent>
+                {appConfigLoading ? <Skeleton className="h-40 w-full" /> : (
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="website-name">Nama Website</Label>
@@ -380,11 +414,12 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="flex justify-end pt-4">
-                    <Button className="bg-primary">
+                    <Button className="bg-primary" onClick={handleSavePageSettings}>
                       Simpan Perubahan Halaman
                     </Button>
                   </div>
                 </div>
+                )}
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="item-2">
@@ -509,5 +544,7 @@ export default function SettingsPage() {
       )}
     </main>
   );
+
+    
 
     

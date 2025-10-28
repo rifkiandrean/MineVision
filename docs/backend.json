@@ -24,6 +24,32 @@
       },
       "required": ["uid", "email", "department"]
     },
+    "AppConfiguration": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AppConfiguration",
+      "type": "object",
+      "description": "Stores global application configuration settings, such as the website name and navigation menu items.",
+      "properties": {
+        "websiteName": {
+          "type": "string",
+          "description": "The display name of the website."
+        },
+        "menuItems": {
+          "type": "array",
+          "description": "The list of navigation menu items.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "number" },
+              "name": { "type": "string" },
+              "path": { "type": "string" }
+            },
+            "required": ["id", "name", "path"]
+          }
+        }
+      },
+      "required": ["websiteName", "menuItems"]
+    },
     "MineVisionDashboard": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MineVisionDashboard",
@@ -777,6 +803,14 @@
         }
       },
       {
+        "path": "/appConfig/{configId}",
+        "definition": {
+          "entityName": "AppConfiguration",
+          "schema": { "$ref": "#/backend/entities/AppConfiguration" },
+          "description": "Stores global application configuration settings."
+        }
+      },
+      {
         "path": "/kpi/{kpiId}",
         "definition": {
           "entityName": "KPI",
@@ -1100,5 +1134,6 @@
     "reasoning": "The Firestore structure is designed to segregate data by department, reflecting the application's core feature of drill-down access to department-specific modules. This segregation strategy (Structural Segregation) allows for clear and maintainable security rules. Each department's data resides in its own top-level collection, such as `produksi`, `geologi`, `pengolahan`, `k3l`, `keuangan`, `sdm`, and `it`. For the main dashboard, new collections for `kpi`, `announcements`, and `productionStatus` are created to store their respective data dynamically. A new `paymentRequests` collection is added to manage the approval workflow for the finance department. A `budgets` collection is added to store budget vs actual data for the finance dashboard. A `leaveRequests` collection is added for the HR leave management system. A `userPermissions` collection is added to store user-specific permissions. A `helpdeskTickets` collection is added to store helpdesk support tickets. Added itAssets and networkServices collections for the IT module. New collections `inventory`, `purchaseRequestsSC`, and `shipments` are added for the Supply Chain module. New collections `assets` and `maintenanceTasks` are added for the Asset & Maintenance module. Added generalLedger, invoices, and bills collections for the finance module. Added payroll-related collections: `payrollRuns`, `employeeSalaries`, `payslips`. Added performance management collections: `performanceReviews`, `employeeObjectives`. Added `attendanceRecords` collection for the work scheduling module."
   }
 }
+    
 
     
