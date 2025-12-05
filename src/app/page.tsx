@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -14,18 +15,19 @@ import {
   Activity,
   AlertTriangle,
   BarChart4,
-  FileText,
-  Megaphone,
-  Truck,
-  Mountain,
-  Cog,
-  ShieldCheck,
   Briefcase,
-  Layers,
-  Package,
-  Settings2,
-  PlusCircle,
+  Cog,
   LayoutDashboard,
+  Layers,
+  LogOut,
+  Megaphone,
+  Mountain,
+  Package,
+  PlusCircle,
+  Settings2,
+  ShieldCheck,
+  Truck,
+  UserCircle,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/page-header';
@@ -42,6 +44,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AnnouncementForm } from './announcement-form';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -58,9 +69,17 @@ const moduleLinks = [
 ]
 
 export default function Home() {
-  const { firestore, isUserLoading } = useFirebase();
+  const { firestore, isUserLoading, user, auth } = useFirebase();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const isMobile = useIsMobile();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    if (auth) {
+      auth.signOut();
+    }
+    router.push('/login');
+  };
 
   const kpiQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;
@@ -321,26 +340,58 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
       <PageHeader title={<LayoutDashboard className="h-8 w-8 text-primary" />} hideBackButton>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Tambah Pengumuman
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Buat Pengumuman Baru</DialogTitle>
-              <DialogDescription>
-                Isi detail pengumuman di bawah ini. Pengumuman akan muncul di
-                dasbor utama.
-              </DialogDescription>
-            </DialogHeader>
-            <AnnouncementForm
-              onAnnouncementCreated={() => setIsDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center gap-2">
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+                <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Tambah Pengumuman
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                <DialogTitle>Buat Pengumuman Baru</DialogTitle>
+                <DialogDescription>
+                    Isi detail pengumuman di bawah ini. Pengumuman akan muncul di
+                    dasbor utama.
+                </DialogDescription>
+                </DialogHeader>
+                <AnnouncementForm
+                onAnnouncementCreated={() => setIsDialogOpen(false)}
+                />
+            </DialogContent>
+            </Dialog>
+
+            <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10">
+                        <AvatarImage src="https://picsum.photos/seed/avatar/100/100" alt="User Avatar" data-ai-hint="person portrait"/>
+                        <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                    </Avatar>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user?.displayName || user?.email || 'User'}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email || 'No email'}
+                    </p>
+                </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                <UserCircle className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       </PageHeader>
       
       {isMobile ? <MobileLayout /> : <DesktopLayout />}
