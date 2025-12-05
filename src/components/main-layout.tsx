@@ -44,6 +44,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   const noSidebarRoutes = ["/login"];
   const isPublicRoute = noSidebarRoutes.includes(pathname);
+  const isHomePage = pathname === '/';
 
   useEffect(() => {
     // If auth check is done, there's no user, and it's not a public route, redirect to login.
@@ -67,11 +68,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   // If user is logged in, render the main layout with sidebar.
+  // Don't show sidebar on mobile home page because it has a grid menu
   return (
     <SidebarProvider>
-      <Sidebar>
-        <SidebarNav websiteName={websiteName} logoUrl={logoUrl} menuItems={menuItems} />
-      </Sidebar>
+        {!isHomePage && (
+            <Sidebar>
+                <SidebarNav websiteName={websiteName} logoUrl={logoUrl} menuItems={menuItems} />
+            </Sidebar>
+        )}
       <SidebarInset>
         {children}
       </SidebarInset>
