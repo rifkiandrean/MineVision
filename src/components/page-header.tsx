@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { FC, ReactNode } from 'react';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
 type PageHeaderProps = {
-  title: string;
+  title: string | ReactNode;
   children?: ReactNode;
   hideBackButton?: boolean;
 };
@@ -32,9 +33,13 @@ const PageHeader: FC<PageHeaderProps> = ({
             <span className="sr-only">Kembali</span>
           </Button>
         )}
-        <h1 className="text-3xl font-bold tracking-tight text-primary">
-          {title}
-        </h1>
+        {typeof title === 'string' ? (
+            <h1 className="text-3xl font-bold tracking-tight text-primary">
+                {title}
+            </h1>
+        ) : (
+            <div>{title}</div>
+        )}
       </div>
       {children && (
         <div className="flex items-center space-x-2">{children}</div>
