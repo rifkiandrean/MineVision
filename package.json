@@ -21,7 +21,8 @@
     "seed:bills": "node --loader ts-node/esm scripts/seed-bills.mjs",
     "seed:bank": "node --loader ts-node/esm scripts/seed-bank-accounts.mjs",
     "seed:it-assets": "node --loader ts-node/esm scripts/seed-it-assets.mjs",
-    "seed:network-services": "node --loader ts-node/esm scripts/seed-network-services.mjs"
+    "seed:network-services": "node --loader ts-node/esm scripts/seed-network-services.mjs",
+    "seed:user": "node --loader ts-node/esm scripts/seed-users.mjs"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",
