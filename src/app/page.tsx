@@ -26,14 +26,15 @@ import {
   PlusCircle,
   Settings2,
   ShieldCheck,
+  Trash2,
   Truck,
   UserCircle,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import PageHeader from '@/components/page-header';
 import { cn } from '@/lib/utils';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { useFirebase, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import {
@@ -52,9 +53,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AnnouncementForm } from './announcement-form';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useToast } from '@/hooks/use-toast';
+
 
 const moduleLinks = [
   { href: '/perencanaan-tambang', icon: Layers, label: 'Perencanaan', description: 'Model geologi dan desain tambang.' },
@@ -73,6 +87,7 @@ export default function Home() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const isMobile = useIsMobile();
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleLogout = () => {
     if (auth) {
@@ -81,10 +96,7 @@ export default function Home() {
     router.push('/login');
   };
 
-  const kpiQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading) return null;
-    return query(collection(firestore, 'kpi'), limit(4));
-  }, [firestore, isUserLoading]);
+  const isSuperAdmin = user?.email === 'rifkiandrean@gmail.com';
 
   const announcementsQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading) return null;
@@ -100,18 +112,36 @@ export default function Home() {
     return collection(firestore, 'productionStatus');
   }, [firestore, isUserLoading]);
 
-  const { data: kpiData, isLoading: kpiLoading } = useCollection<any>(kpiQuery);
   const { data: announcements, isLoading: announcementsLoading } =
     useCollection<any>(announcementsQuery);
   const { data: productionStatus, isLoading: productionStatusLoading } =
     useCollection<any>(productionStatusQuery);
 
-  const kpiIcons: { [key: string]: React.ReactNode } = {
-    'Total Production (Ton)': <BarChart4 className="h-6 w-6 text-primary" />,
-    'Equipment Availability': <Truck className="h-6 w-6 text-primary" />,
-    'Safety Incidents': <AlertTriangle className="h-6 w-6 text-destructive" />,
-    'Environmental Compliance': <Activity className="h-6 w-6 text-primary" />,
+  const handleDeleteAllAnnouncements = async () => {
+    if (!firestore) return;
+    try {
+      const announcementsCollection = collection(firestore, 'announcements');
+      const querySnapshot = await getDocs(announcementsCollection);
+      
+      querySnapshot.forEach((doc) => {
+        deleteDocumentNonBlocking(doc.ref);
+      });
+
+      toast({
+        title: "Sukses",
+        description: "Semua pengumuman telah dihapus.",
+      });
+
+    } catch (error) {
+      console.error("Error deleting announcements:", error);
+      toast({
+        variant: "destructive",
+        title: "Gagal",
+        description: "Gagal menghapus semua pengumuman.",
+      });
+    }
   };
+
 
   const priorityColors: { [key: string]: string } = {
     High: 'bg-destructive/80 hover:bg-destructive',
@@ -344,7 +374,7 @@ export default function Home() {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
                 <Button size="icon" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                  <PlusCircle className="h-4 w-4" />
+                  <PlusCircle />
                   <span className="sr-only">Tambah Pengumuman</span>
                 </Button>
             </DialogTrigger>
@@ -361,6 +391,29 @@ export default function Home() {
                 />
             </DialogContent>
             </Dialog>
+
+            {isSuperAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                   <Button variant="destructive" size="icon">
+                      <Trash2 />
+                      <span className="sr-only">Hapus Semua Pengumuman</span>
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tindakan ini tidak dapat dibatalkan. Ini akan menghapus semua pengumuman secara permanen dari database.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteAllAnnouncements}>Lanjutkan</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
 
             <DropdownMenu>
             <DropdownMenuTrigger asChild>
