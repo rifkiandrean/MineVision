@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import PageHeader from '@/components/page-header';
 import {
@@ -15,10 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useFirebase } from '@/firebase';
 import { Loader2 } from 'lucide-react';
-import { updatePasswordAction, updateProfile } from './actions';
+import { updateProfile, validatePasswordChange, type ProfileFormState, type PasswordFormState } from './actions';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 
 function SubmitButton({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
@@ -36,12 +36,16 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function ProfilePage() {
-  const { user } = useFirebase();
-  const { toast } = useToast();
+const initialProfileState: ProfileFormState = { message: '' };
+const initialPasswordState: PasswordFormState = { message: '' };
 
-  const [profileState, profileAction] = useActionState(updateProfile, { message: '' });
-  const [passwordState, passwordAction] = useActionState(updatePasswordAction, { message: '' });
+export default function ProfilePage() {
+  const { user, auth } = useFirebase();
+  const { toast } = useToast();
+  const passwordFormRef = useRef<HTMLFormElement>(null);
+
+  const [profileState, profileAction] = useActionState(updateProfile, initialProfileState);
+  const [passwordState, passwordAction] = useActionState(validatePasswordChange, initialPasswordState);
 
   useEffect(() => {
     if (profileState.message) {
@@ -61,22 +65,54 @@ export default function ProfilePage() {
     }
   }, [profileState, toast]);
 
+  // This effect handles the client-side re-authentication and password update
   useEffect(() => {
-    if (passwordState.message) {
-      if (passwordState.message.startsWith('Error')) {
-        toast({
-          variant: 'destructive',
-          title: 'Gagal Mengubah Password',
-          description: passwordState.message,
-        });
-      } else {
-        toast({
-          title: 'Password Berhasil Diubah',
-          description: passwordState.message,
-        });
-      }
+    async function handlePasswordUpdate() {
+        if (!user || !auth || !passwordFormRef.current) return;
+
+        const formData = new FormData(passwordFormRef.current);
+        const currentPassword = formData.get('currentPassword') as string;
+        const newPassword = formData.get('newPassword') as string;
+
+        if (!currentPassword || !newPassword) return;
+
+        try {
+            const credential = EmailAuthProvider.credential(user.email!, currentPassword);
+            await reauthenticateWithCredential(user, credential);
+            
+            // Re-authentication successful, now update the password
+            await updatePassword(user, newPassword);
+
+            toast({
+                title: 'Password Berhasil Diubah',
+                description: 'Password Anda telah berhasil diperbarui.',
+            });
+            passwordFormRef.current?.reset();
+
+        } catch (error: any) {
+            console.error("Password update error:", error);
+            let description = 'Terjadi kesalahan. Silakan coba lagi.';
+            if (error.code === 'auth/wrong-password') {
+                description = 'Password saat ini yang Anda masukkan salah.';
+            }
+            toast({
+                variant: 'destructive',
+                title: 'Gagal Mengubah Password',
+                description,
+            });
+        }
     }
-  }, [passwordState, toast]);
+
+    if (passwordState.message.startsWith('Validasi berhasil')) {
+        handlePasswordUpdate();
+    } else if (passwordState.message.startsWith('Error')) {
+        toast({
+            variant: 'destructive',
+            title: 'Gagal Mengubah Password',
+            description: Object.values(passwordState.errors || {}).join(' ') || passwordState.message,
+        });
+    }
+  }, [passwordState, toast, user, auth]);
 
   return (
     <main className="flex flex-1 flex-col">
@@ -91,6 +127,7 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent>
             <form action={profileAction} className="space-y-4">
+              <input type="hidden" name="uid" value={user?.uid || ''} />
               <div className="space-y-2">
                 <Label htmlFor="displayName">Nama Tampilan</Label>
                 <Input
@@ -119,7 +156,7 @@ export default function ProfilePage() {
 
             <Separator className="my-8" />
 
-            <form action={passwordAction} className="space-y-4">
+            <form ref={passwordFormRef} action={passwordAction} className="space-y-4">
                <h3 className="text-lg font-medium">Ubah Password</h3>
                <div className="space-y-2">
                 <Label htmlFor="currentPassword">Password Saat Ini</Label>
