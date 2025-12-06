@@ -12,7 +12,8 @@ service cloud.firestore {
     }
 
     // For all other documents, require authentication for any access.
-    match /{document=**} {
+    // This rule does NOT apply to paths already matched above.
+    match /{path=**} {
       allow read, write: if request.auth != null;
     }
   }
