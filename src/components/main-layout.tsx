@@ -2,50 +2,19 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
 import SidebarNav from "./sidebar-nav";
-import { useFirebase, useDoc, useMemoFirebase } from "@/firebase";
-import { doc } from 'firebase/firestore';
+import { useFirebase } from "@/firebase";
 import { Pickaxe } from "lucide-react";
-import type { AppConfig } from "@/lib/types";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isUserLoading, firestore } = useFirebase();
-
-  const [websiteName, setWebsiteName] = useState('MineVision');
-  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
-  const [menuItems, setMenuItems] = useState<AppConfig['menuItems']>([]);
-
-  const appConfigDocRef = useMemoFirebase(() => {
-    // Wait until user loading is false before attempting to fetch
-    if (!firestore || isUserLoading) return null;
-    return doc(firestore, 'appConfig', 'main');
-  }, [firestore, isUserLoading]);
-
-  const { data: appConfig } = useDoc<AppConfig>(appConfigDocRef);
-
-  useEffect(() => {
-    if (appConfig) {
-        if (appConfig.websiteName) {
-            setWebsiteName(appConfig.websiteName);
-            document.title = appConfig.websiteName;
-        }
-        if (appConfig.logoUrl) {
-            setLogoUrl(appConfig.logoUrl);
-        }
-        if (appConfig.menuItems) {
-            setMenuItems(appConfig.menuItems);
-        }
-    }
-  }, [appConfig]);
-
+  const { user, isUserLoading } = useFirebase();
 
   const noSidebarRoutes = ["/login"];
   const isPublicRoute = noSidebarRoutes.includes(pathname);
-  const isHomePage = pathname === '/';
 
   useEffect(() => {
     // If auth check is done, there's no user, and it's not a public route, redirect to login.
@@ -69,11 +38,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   // If user is logged in, render the main layout with sidebar.
-  // Don't show sidebar on mobile home page because it has a grid menu
   return (
     <SidebarProvider>
         <Sidebar>
-            <SidebarNav websiteName={websiteName} logoUrl={logoUrl} menuItems={menuItems} />
+            {/* SidebarNav now uses static default props, no data fetching here */}
+            <SidebarNav />
         </Sidebar>
       <SidebarInset>
         {children}

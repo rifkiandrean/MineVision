@@ -72,13 +72,26 @@ const adminNavItems = [
   { href: "/administrasi/it", icon: <Server />, label: "IT" },
 ];
 
+const defaultMenuItems = [
+  { id: 1, name: 'Dashboard', path: '/' },
+  { id: 2, name: 'Perencanaan', path: '/perencanaan-tambang' },
+  { id: 3, name: 'Produksi', path: '/produksi' },
+  { id: 4, name: 'Geologi', path: '/geologi' },
+  { id: 5, name: 'Pengolahan', path: '/pengolahan' },
+  { id: 6, name: 'K3L', path: '/k3l' },
+  { id: 7, name: 'Rantai Pasokan', path: '/rantai-pasokan' },
+  { id: 8, name: 'Aset', path: '/aset-dan-pemeliharaan' },
+  { id: 9, name: 'Laporan & BI', path: '/pelaporan-dan-analisis'},
+];
+
+
 interface SidebarNavProps {
-    websiteName: string;
+    websiteName?: string;
     logoUrl?: string;
-    menuItems: AppConfig['menuItems'];
+    menuItems?: AppConfig['menuItems'];
 }
 
-export default function SidebarNav({ websiteName, logoUrl, menuItems = [] }: SidebarNavProps) {
+export default function SidebarNav({ websiteName = 'MineVision', logoUrl, menuItems = defaultMenuItems }: SidebarNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { auth, user } = useFirebase();
