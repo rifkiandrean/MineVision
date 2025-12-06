@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import { createAnnouncement, type FormState } from './announcement-actions';
 import { Button } from '@/components/ui/button';
@@ -49,10 +49,17 @@ export function AnnouncementForm({
   const { firestore } = useFirebase();
   const [state, formAction] = useActionState(createAnnouncement, initialState);
   const { toast } = useToast();
+  const processedStateRef = useRef<FormState | null>(null);
 
   const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
 
   useEffect(() => {
+    // Prevent re-running for the same state object that has already been processed
+    if (state === processedStateRef.current) {
+        return;
+    }
+    processedStateRef.current = state;
+
     if (state.message.startsWith('Error')) {
       toast({
         variant: 'destructive',
