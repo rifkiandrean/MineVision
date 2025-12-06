@@ -343,9 +343,9 @@ export default function Home() {
         <div className="flex items-center gap-2">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-                <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Tambah Pengumuman
+                <Button size="icon" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                  <PlusCircle className="h-4 w-4" />
+                  <span className="sr-only">Tambah Pengumuman</span>
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
