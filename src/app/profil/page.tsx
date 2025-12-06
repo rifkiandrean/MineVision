@@ -18,7 +18,7 @@ import { Loader2 } from 'lucide-react';
 import { updateProfile, validatePasswordChange, type ProfileFormState, type PasswordFormState } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile as updateClientProfile } from 'firebase/auth';
 
 function SubmitButton({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
@@ -43,29 +43,48 @@ export default function ProfilePage() {
   const { user, auth } = useFirebase();
   const { toast } = useToast();
   const passwordFormRef = useRef<HTMLFormElement>(null);
+  const profileFormRef = useRef<HTMLFormElement>(null);
 
   const [profileState, profileAction] = useActionState(updateProfile, initialProfileState);
   const [passwordState, passwordAction] = useActionState(validatePasswordChange, initialPasswordState);
 
+  // Effect for handling Profile Update
   useEffect(() => {
-    if (profileState.message) {
-      if (profileState.message.startsWith('Error')) {
-        toast({
+    async function handleProfileUpdate() {
+        if (!user || !auth || !profileFormRef.current) return;
+        
+        const formData = new FormData(profileFormRef.current);
+        const displayName = formData.get('displayName') as string;
+
+        try {
+            await updateClientProfile(user, { displayName });
+            toast({
+                title: 'Profil Diperbarui',
+                description: 'Nama tampilan Anda telah berhasil diperbarui.',
+            });
+             // You might want to trigger a refresh of user data if needed
+        } catch (error: any) {
+            console.error("Client profile update error:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Gagal Memperbarui Profil',
+                description: error.message || 'Terjadi kesalahan di sisi klien.',
+            });
+        }
+    }
+      
+    if (profileState.message.startsWith('Validasi berhasil')) {
+        handleProfileUpdate();
+    } else if (profileState.message.startsWith('Error')) {
+      toast({
           variant: 'destructive',
           title: 'Gagal Memperbarui Profil',
-          description: profileState.message,
-        });
-      } else {
-        toast({
-          title: 'Profil Diperbarui',
-          description: profileState.message,
-        });
-        // You might want to refresh user data here if display name is shown elsewhere
-      }
+          description: Object.values(profileState.errors || {}).join(' ') || profileState.message,
+      });
     }
-  }, [profileState, toast]);
+  }, [profileState, toast, user, auth]);
 
-  // This effect handles the client-side re-authentication and password update
+  // Effect for handling Password Update
   useEffect(() => {
     async function handlePasswordUpdate() {
         if (!user || !auth || !passwordFormRef.current) return;
@@ -80,7 +99,6 @@ export default function ProfilePage() {
             const credential = EmailAuthProvider.credential(user.email!, currentPassword);
             await reauthenticateWithCredential(user, credential);
             
-            // Re-authentication successful, now update the password
             await updatePassword(user, newPassword);
 
             toast({
@@ -92,7 +110,7 @@ export default function ProfilePage() {
         } catch (error: any) {
             console.error("Password update error:", error);
             let description = 'Terjadi kesalahan. Silakan coba lagi.';
-            if (error.code === 'auth/wrong-password') {
+            if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                 description = 'Password saat ini yang Anda masukkan salah.';
             }
             toast({
@@ -126,8 +144,7 @@ export default function ProfilePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={profileAction} className="space-y-4">
-              <input type="hidden" name="uid" value={user?.uid || ''} />
+            <form ref={profileFormRef} action={profileAction} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="displayName">Nama Tampilan</Label>
                 <Input

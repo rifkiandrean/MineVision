@@ -1,17 +1,9 @@
 'use server';
 
-import { getApp } from 'firebase/app';
-import { getAuth, updateProfile as updateAuthProfile, updatePassword as updateAuthPassword } from 'firebase/auth';
 import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
-
-// This is not an ideal way to initialize firebase on server actions,
-// but it is required for this specific environment.
-import { initializeFirebase } from '@/firebase';
 
 const profileSchema = z.object({
   displayName: z.string().min(3, 'Nama tampilan minimal 3 karakter.'),
-  uid: z.string().min(1, 'User ID is required.'),
 });
 
 export type ProfileFormState = {
@@ -35,7 +27,6 @@ export async function updateProfile(
 ): Promise<ProfileFormState> {
   const validatedFields = profileSchema.safeParse({
     displayName: formData.get('displayName'),
-    uid: formData.get('uid'),
   });
 
   if (!validatedFields.success) {
@@ -45,33 +36,10 @@ export async function updateProfile(
     };
   }
 
-  const { uid, displayName } = validatedFields.data;
-  
-  try {
-    const { auth } = initializeFirebase();
-    // This is not how it's supposed to work, but we are cheating a bit.
-    // In a real app, you would get the user from the session.
-    // This is a security risk if not handled properly.
-    const user = { uid }; 
-
-    // This is a very unusual way to update a user profile from a server action.
-    // It's a workaround for this environment's constraints.
-    // In a real app, this should be done on the client after authentication.
-    const { getAuth: getAdminAuth,updateUser } = await import('firebase-admin/auth');
-    const { getApp: getAdminApp } = await import('firebase-admin/app');
-    
-    await updateUser(getAdminApp(), uid, { displayName });
-
-    revalidatePath('/profil');
-    return { message: 'Nama tampilan berhasil diperbarui.' };
-  } catch (error: any) {
-    console.error("Error updating profile in server action:", error);
-    return { message: `Error: ${error.message || 'Gagal memperbarui profil.'}` };
-  }
+  // Validation is successful. The client will handle the actual update.
+  return { message: 'Validasi berhasil. Memperbarui profil di sisi klien...' };
 }
 
-// Password updates MUST happen on the client after re-authentication.
-// This action is only for validation, the actual update is on the client.
 export async function validatePasswordChange(
   prevState: PasswordFormState,
   formData: FormData
@@ -93,5 +61,6 @@ export async function validatePasswordChange(
     };
   }
   
+  // Validation successful. The client will now handle re-authentication and update.
   return { message: 'Validasi berhasil. Lanjutkan dengan re-autentikasi.' };
 }
