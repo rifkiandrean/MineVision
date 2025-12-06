@@ -21,7 +21,7 @@ import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { BankAccount } from '@/lib/types';
-import { Bank, Landmark } from 'lucide-react';
+import { Landmark } from 'lucide-react';
 
 export default function KasDanBankPage() {
   const { firestore } = useFirebase();
@@ -97,7 +97,7 @@ export default function KasDanBankPage() {
                 : accounts?.map((account) => (
                     <TableRow key={account.id}>
                       <TableCell className="font-medium flex items-center gap-2">
-                        <Bank className="h-4 w-4 text-muted-foreground" />
+                        <Landmark className="h-4 w-4 text-muted-foreground" />
                         {account.bankName}
                       </TableCell>
                       <TableCell>{account.accountName}</TableCell>
@@ -117,5 +117,3 @@ export default function KasDanBankPage() {
     </main>
   );
 }
-
-    
