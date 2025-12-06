@@ -86,49 +86,51 @@ export default function SdmDashboardPage() {
     const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
 
   return (
-    <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+    <main className="flex flex-1 flex-col">
       <PageHeader title="Administrasi: SDM" />
-      <div className="grid gap-4 md:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {sdmModules.map(mod => {
-            const Icon = mod.icon;
-            let statValue;
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="grid gap-4 md:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {sdmModules.map(mod => {
+              const Icon = mod.icon;
+              let statValue;
 
-            if (mod.title === "Manajemen Cuti") {
-                statValue = leaveLoading ? <Skeleton className="h-7 w-12"/> : (pendingLeaveRequests?.length ?? 0);
-            } else if (mod.title === "Manajemen Karyawan") {
-                statValue = usersLoading ? <Skeleton className="h-7 w-16"/> : (users?.length ?? 0);
-            } else {
-                statValue = mod.stats.value;
-            }
-            
-            const statLabel = mod.title === "Manajemen Karyawan" ? "Total Karyawan" : mod.stats.label;
+              if (mod.title === "Manajemen Cuti") {
+                  statValue = leaveLoading ? <Skeleton className="h-7 w-12"/> : (pendingLeaveRequests?.length ?? 0);
+              } else if (mod.title === "Manajemen Karyawan") {
+                  statValue = usersLoading ? <Skeleton className="h-7 w-16"/> : (users?.length ?? 0);
+              } else {
+                  statValue = mod.stats.value;
+              }
+              
+              const statLabel = mod.title === "Manajemen Karyawan" ? "Total Karyawan" : mod.stats.label;
 
-            return (
-                 <Card key={mod.title} className="flex flex-col">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-3">
-                            <Icon className="h-6 w-6 text-primary" />
-                            {mod.title}
-                        </CardTitle>
-                        <CardDescription>{mod.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                        <div className="text-3xl font-bold">
-                            {statValue}
-                        </div>
-                        <p className="text-xs text-muted-foreground">{statLabel}</p>
-                    </CardContent>
-                    <CardContent>
-                         <Link href={mod.disabled ? "#" : mod.href} passHref>
-                            <Button className="w-full" disabled={mod.disabled}>
-                                {mod.disabled ? 'Segera Hadir' : 'Kelola'}
-                                {!mod.disabled && <ArrowRight className="ml-2 h-4 w-4" />}
-                            </Button>
-                        </Link>
-                    </CardContent>
-                </Card>
-            )
-        })}
+              return (
+                  <Card key={mod.title} className="flex flex-col">
+                      <CardHeader>
+                          <CardTitle className="flex items-center gap-3">
+                              <Icon className="h-6 w-6 text-primary" />
+                              {mod.title}
+                          </CardTitle>
+                          <CardDescription>{mod.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-grow">
+                          <div className="text-3xl font-bold">
+                              {statValue}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{statLabel}</p>
+                      </CardContent>
+                      <CardContent>
+                          <Link href={mod.disabled ? "#" : mod.href} passHref>
+                              <Button className="w-full" disabled={mod.disabled}>
+                                  {mod.disabled ? 'Segera Hadir' : 'Kelola'}
+                                  {!mod.disabled && <ArrowRight className="ml-2 h-4 w-4" />}
+                              </Button>
+                          </Link>
+                      </CardContent>
+                  </Card>
+              )
+          })}
+        </div>
       </div>
     </main>
   );

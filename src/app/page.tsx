@@ -338,8 +338,8 @@ export default function Home() {
   );
 
   return (
-    <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-      <PageHeader title={<LayoutDashboard className="h-8 w-8 text-primary" />} hideBackButton>
+    <main className="flex flex-1 flex-col">
+      <PageHeader title={<LayoutDashboard className="h-8 w-8 text-primary" />} hideBackButton className="static md:sticky">
         <div className="flex items-center gap-2">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -394,7 +394,9 @@ export default function Home() {
         </div>
       </PageHeader>
       
-      {isMobile ? <MobileLayout /> : <DesktopLayout />}
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        {isMobile ? <MobileLayout /> : <DesktopLayout />}
+      </div>
 
     </main>
   );

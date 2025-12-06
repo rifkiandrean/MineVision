@@ -96,7 +96,7 @@ export default function ItPage() {
   };
 
   return (
-    <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+    <main className="flex flex-1 flex-col">
       <PageHeader title="Administrasi: IT">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -117,176 +117,178 @@ export default function ItPage() {
           </DialogContent>
         </Dialog>
       </PageHeader>
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HardDrive className="h-5 w-5 text-primary" />
+                IT Asset Inventory
+              </CardTitle>
+              <CardDescription>
+                Daftar semua aset perangkat keras yang terdaftar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Asset ID</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {assetsLoading ? (
+                      Array.from({length: 4}).map((_, i) => (
+                          <TableRow key={i}>
+                              <TableCell><Skeleton className="h-4 w-20"/></TableCell>
+                              <TableCell><Skeleton className="h-4 w-24"/></TableCell>
+                              <TableCell><Skeleton className="h-4 w-32"/></TableCell>
+                              <TableCell><Skeleton className="h-6 w-24"/></TableCell>
+                          </TableRow>
+                      ))
+                  ) : (
+                      assets?.map((asset) => (
+                        <TableRow key={asset.id}>
+                          <TableCell className="font-medium">{asset.assetId}</TableCell>
+                          <TableCell>{asset.type}</TableCell>
+                          <TableCell>{asset.user}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="secondary"
+                              className={cn(getStatusClass(asset.status))}
+                            >
+                              {asset.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wifi className="h-5 w-5 text-primary" />
+                Network Status
+              </CardTitle>
+              <CardDescription>
+                Ketersediaan dan kinerja layanan jaringan.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {networkLoading ? (
+                  Array.from({length: 4}).map((_, i) => (
+                      <div key={i} className="space-y-2">
+                          <div className="flex justify-between">
+                              <Skeleton className="h-4 w-32"/>
+                              <Skeleton className="h-6 w-24"/>
+                          </div>
+                          <Skeleton className="h-2 w-full"/>
+                      </div>
+                  ))
+              ) : (
+                  networkServices?.map((service) => (
+                    <div key={service.id}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium">{service.name}</span>
+                        <Badge
+                          variant="secondary"
+                          className={cn(getStatusClass(service.status))}
+                        >
+                          {service.status}
+                        </Badge>
+                      </div>
+                      <Progress value={service.uptime} />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Uptime: {service.uptime}%
+                      </p>
+                    </div>
+                  ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <HardDrive className="h-5 w-5 text-primary" />
-              IT Asset Inventory
+              <Ticket className="h-5 w-5 text-primary" />
+              Helpdesk Tickets
             </CardTitle>
             <CardDescription>
-              Daftar semua aset perangkat keras yang terdaftar.
+              Lacak dan kelola tiket dukungan dari seluruh departemen.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Asset ID</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>User</TableHead>
+                  <TableHead>Ticket ID</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Submitted By</TableHead>
+                  <TableHead>Priority</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {assetsLoading ? (
-                    Array.from({length: 4}).map((_, i) => (
-                        <TableRow key={i}>
-                            <TableCell><Skeleton className="h-4 w-20"/></TableCell>
-                            <TableCell><Skeleton className="h-4 w-24"/></TableCell>
-                            <TableCell><Skeleton className="h-4 w-32"/></TableCell>
-                            <TableCell><Skeleton className="h-6 w-24"/></TableCell>
-                        </TableRow>
-                    ))
-                ) : (
-                    assets?.map((asset) => (
-                      <TableRow key={asset.id}>
-                        <TableCell className="font-medium">{asset.assetId}</TableCell>
-                        <TableCell>{asset.type}</TableCell>
-                        <TableCell>{asset.user}</TableCell>
+                {ticketsLoading
+                  ? Array.from({ length: 3 }).map((_, i) => (
+                      <TableRow key={i}>
                         <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={cn(getStatusClass(asset.status))}
-                          >
-                            {asset.status}
-                          </Badge>
+                          <Skeleton className="h-4 w-20" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-full" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-28" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-6 w-16" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-6 w-20" />
                         </TableCell>
                       </TableRow>
                     ))
-                )}
+                  : tickets?.map((ticket) => (
+                      <TableRow key={ticket.id}>
+                        <TableCell className="font-medium">#{ticket.ticketId}</TableCell>
+                        <TableCell>{ticket.subject}</TableCell>
+                        <TableCell>{ticket.userEmail}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={cn(getPriorityClass(ticket.priority))}
+                          >
+                            {ticket.priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={cn(getStatusClass(ticket.status))}
+                          >
+                            {ticket.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wifi className="h-5 w-5 text-primary" />
-              Network Status
-            </CardTitle>
-            <CardDescription>
-              Ketersediaan dan kinerja layanan jaringan.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {networkLoading ? (
-                Array.from({length: 4}).map((_, i) => (
-                    <div key={i} className="space-y-2">
-                        <div className="flex justify-between">
-                            <Skeleton className="h-4 w-32"/>
-                            <Skeleton className="h-6 w-24"/>
-                        </div>
-                        <Skeleton className="h-2 w-full"/>
-                    </div>
-                ))
-            ) : (
-                networkServices?.map((service) => (
-                  <div key={service.id}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium">{service.name}</span>
-                      <Badge
-                        variant="secondary"
-                        className={cn(getStatusClass(service.status))}
-                      >
-                        {service.status}
-                      </Badge>
-                    </div>
-                    <Progress value={service.uptime} />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Uptime: {service.uptime}%
-                    </p>
-                  </div>
-                ))
+            {!ticketsLoading && tickets?.length === 0 && (
+              <div className="text-center py-10 text-muted-foreground">
+                  Tidak ada tiket bantuan saat ini.
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Ticket className="h-5 w-5 text-primary" />
-            Helpdesk Tickets
-          </CardTitle>
-          <CardDescription>
-            Lacak dan kelola tiket dukungan dari seluruh departemen.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ticket ID</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Submitted By</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ticketsLoading
-                ? Array.from({ length: 3 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <Skeleton className="h-4 w-20" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-full" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-4 w-28" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-6 w-16" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-6 w-20" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                : tickets?.map((ticket) => (
-                    <TableRow key={ticket.id}>
-                      <TableCell className="font-medium">#{ticket.ticketId}</TableCell>
-                      <TableCell>{ticket.subject}</TableCell>
-                      <TableCell>{ticket.userEmail}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={cn(getPriorityClass(ticket.priority))}
-                        >
-                          {ticket.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={cn(getStatusClass(ticket.status))}
-                        >
-                          {ticket.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-            </TableBody>
-          </Table>
-          {!ticketsLoading && tickets?.length === 0 && (
-             <div className="text-center py-10 text-muted-foreground">
-                Tidak ada tiket bantuan saat ini.
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </main>
   );
 }

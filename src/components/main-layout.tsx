@@ -71,11 +71,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   // Don't show sidebar on mobile home page because it has a grid menu
   return (
     <SidebarProvider>
-        {!isHomePage && (
-            <Sidebar>
-                <SidebarNav websiteName={websiteName} logoUrl={logoUrl} menuItems={menuItems} />
-            </Sidebar>
-        )}
+        <Sidebar>
+            <SidebarNav websiteName={websiteName} logoUrl={logoUrl} menuItems={menuItems} />
+        </Sidebar>
       <SidebarInset>
         {children}
       </SidebarInset>
