@@ -20,9 +20,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [menuItems, setMenuItems] = useState<AppConfig['menuItems']>([]);
 
   const appConfigDocRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // Wait until user loading is false before attempting to fetch
+    if (!firestore || isUserLoading) return null;
     return doc(firestore, 'appConfig', 'main');
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: appConfig } = useDoc<AppConfig>(appConfigDocRef);
 
