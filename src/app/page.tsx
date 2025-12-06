@@ -339,7 +339,7 @@ export default function Home() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <PageHeader title={<LayoutDashboard className="h-8 w-8 text-primary" />} hideBackButton className="static md:sticky">
+      <PageHeader title={<LayoutDashboard className="h-8 w-8 text-primary" />} hideBackButton>
         <div className="flex items-center gap-2">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
